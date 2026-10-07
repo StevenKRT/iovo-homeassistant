@@ -20,15 +20,19 @@ from .const import (
     CONF_PARENT_ENTRY_ID,
     CONF_RESOURCE,
     CONF_SECRET,
+    DEVICES_ENTRY_TITLE,
+    DEVICES_UNIQUE_ID,
     DOMAIN,
     FLOORS_ENTRY_TITLE,
     FLOORS_UNIQUE_ID,
     LOADED_VERSION,
+    RESOURCE_DEVICES,
     RESOURCE_FLOORS,
     RESOURCE_ROOMS,
     ROOMS_ENTRY_TITLE,
     ROOMS_UNIQUE_ID,
 )
+from .device_sync import IovoDeviceSync
 from .floor_sync import IovoFloorSync
 from .sync import IovoRoomSync
 
@@ -39,7 +43,7 @@ VERSION_CHECK_INTERVAL = timedelta(minutes=1)
 @dataclass(slots=True)
 class IovoRuntimeData:
     client: IovoApiClient
-    sync: IovoRoomSync | IovoFloorSync
+    sync: IovoRoomSync | IovoFloorSync | IovoDeviceSync
     cancel_version_check: Callable[[], None] | None = None
 
 
@@ -85,6 +89,16 @@ def _credentials_for_entry(
     )
 
 
+def _entry_identity(resource: str) -> tuple[str, str]:
+    if resource == RESOURCE_FLOORS:
+        return FLOORS_ENTRY_TITLE, FLOORS_UNIQUE_ID
+
+    if resource == RESOURCE_DEVICES:
+        return DEVICES_ENTRY_TITLE, DEVICES_UNIQUE_ID
+
+    return ROOMS_ENTRY_TITLE, ROOMS_UNIQUE_ID
+
+
 async def async_migrate_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -99,20 +113,14 @@ async def async_migrate_entry(
 
     resource = str(data.get(CONF_RESOURCE, RESOURCE_ROOMS))
     data[CONF_RESOURCE] = resource
-
-    if resource == RESOURCE_FLOORS:
-        title = FLOORS_ENTRY_TITLE
-        unique_id = FLOORS_UNIQUE_ID
-    else:
-        title = ROOMS_ENTRY_TITLE
-        unique_id = ROOMS_UNIQUE_ID
+    title, unique_id = _entry_identity(resource)
 
     hass.config_entries.async_update_entry(
         entry,
         data=data,
         title=title,
         unique_id=unique_id,
-        version=5,
+        version=6,
         minor_version=0,
     )
 
@@ -124,13 +132,7 @@ async def async_setup_entry(
     entry: ConfigEntry,
 ) -> bool:
     resource = _resource_for_entry(entry)
-
-    if resource == RESOURCE_FLOORS:
-        expected_title = FLOORS_ENTRY_TITLE
-        expected_unique_id = FLOORS_UNIQUE_ID
-    else:
-        expected_title = ROOMS_ENTRY_TITLE
-        expected_unique_id = ROOMS_UNIQUE_ID
+    expected_title, expected_unique_id = _entry_identity(resource)
 
     if entry.title != expected_title or entry.unique_id != expected_unique_id:
         hass.config_entries.async_update_entry(
@@ -147,7 +149,14 @@ async def async_setup_entry(
     )
 
     if resource == RESOURCE_FLOORS:
-        sync: IovoRoomSync | IovoFloorSync = IovoFloorSync(
+        sync: IovoRoomSync | IovoFloorSync | IovoDeviceSync = IovoFloorSync(
+            hass,
+            entry.entry_id,
+            client,
+            dict(entry.options),
+        )
+    elif resource == RESOURCE_DEVICES:
+        sync = IovoDeviceSync(
             hass,
             entry.entry_id,
             client,
@@ -188,26 +197,39 @@ async def async_setup_entry(
     )
 
     if resource == RESOURCE_ROOMS:
-        await _async_ensure_floor_entry(hass, entry)
+        await _async_ensure_child_entry(
+            hass,
+            entry,
+            RESOURCE_FLOORS,
+            FLOORS_UNIQUE_ID,
+        )
+        await _async_ensure_child_entry(
+            hass,
+            entry,
+            RESOURCE_DEVICES,
+            DEVICES_UNIQUE_ID,
+        )
 
     return True
 
 
-async def _async_ensure_floor_entry(
+async def _async_ensure_child_entry(
     hass: HomeAssistant,
     rooms_entry: ConfigEntry,
+    resource: str,
+    unique_id: str,
 ) -> None:
     for candidate in hass.config_entries.async_entries(DOMAIN):
-        if candidate.unique_id == FLOORS_UNIQUE_ID:
+        if candidate.unique_id == unique_id:
             return
-        if _resource_for_entry(candidate) == RESOURCE_FLOORS:
+        if _resource_for_entry(candidate) == resource:
             return
 
     await hass.config_entries.flow.async_init(
         DOMAIN,
         context={"source": config_entries.SOURCE_IMPORT},
         data={
-            CONF_RESOURCE: RESOURCE_FLOORS,
+            CONF_RESOURCE: resource,
             CONF_PARENT_ENTRY_ID: rooms_entry.entry_id,
         },
     )
@@ -236,10 +258,13 @@ async def _async_update_listener(
         return
 
     for candidate in hass.config_entries.async_entries(DOMAIN):
-        if (
-            candidate.entry_id != entry.entry_id
-            and _resource_for_entry(candidate) == RESOURCE_FLOORS
-        ):
+        if candidate.entry_id == entry.entry_id:
+            continue
+
+        if _resource_for_entry(candidate) in {
+            RESOURCE_FLOORS,
+            RESOURCE_DEVICES,
+        }:
             await hass.config_entries.async_reload(candidate.entry_id)
 
 

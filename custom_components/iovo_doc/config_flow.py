@@ -9,6 +9,11 @@ from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
+    EntitySelector,
+    EntitySelectorConfig,
+    SelectOptionDict,
+    SelectSelector,
+    SelectSelectorConfig,
     TextSelector,
     TextSelectorConfig,
     TextSelectorType,
@@ -23,9 +28,15 @@ from .api import (
     IovoUnsupportedError,
 )
 from .const import (
+    AUTO_DEVICE_TYPES,
     CONF_API_KEY,
     CONF_AUTO_SYNC,
     CONF_CONFLICT_PRIORITY,
+    CONF_DEVICE_ENTITIES,
+    CONF_DEVICE_EXCLUDED_ENTITIES,
+    CONF_DEVICE_SELECTION_MODE,
+    CONF_DEVICE_STATE_SYNC,
+    CONF_DEVICE_TYPES,
     CONF_PARENT_ENTRY_ID,
     CONF_RESOURCE,
     CONF_SECRET,
@@ -35,14 +46,24 @@ from .const import (
     CONFLICT_IOVO,
     DEFAULT_AUTO_SYNC,
     DEFAULT_CONFLICT_PRIORITY,
+    DEFAULT_DEVICE_SELECTION_MODE,
+    DEFAULT_DEVICE_STATE_SYNC,
     DEFAULT_SYNC_DIRECTION,
     DEFAULT_SYNC_INTERVAL,
+    DEVICE_SELECTION_ALL,
+    DEVICE_SELECTION_ENTITIES,
+    DEVICE_SELECTION_TYPES,
+    DEVICE_SELECTION_TYPES_AND_ENTITIES,
+    DEVICE_TYPE_LABELS,
+    DEVICES_ENTRY_TITLE,
+    DEVICES_UNIQUE_ID,
     DIRECTION_BIDIRECTIONAL,
     DIRECTION_HA_TO_IOVO,
     DIRECTION_IOVO_TO_HA,
     DOMAIN,
     FLOORS_ENTRY_TITLE,
     FLOORS_UNIQUE_ID,
+    RESOURCE_DEVICES,
     RESOURCE_FLOORS,
     RESOURCE_ROOMS,
     ROOMS_ENTRY_TITLE,
@@ -95,7 +116,7 @@ class IovoConfigFlow(
     config_entries.ConfigFlow,
     domain=DOMAIN,
 ):
-    VERSION = 5
+    VERSION = 6
     MINOR_VERSION = 0
 
     async def async_step_user(
@@ -137,7 +158,7 @@ class IovoConfigFlow(
                         CONF_SECRET: secret,
                         CONF_RESOURCE: RESOURCE_ROOMS,
                     },
-                    options=self._default_options(),
+                    options=self._default_options(RESOURCE_ROOMS),
                 )
 
         return self.async_show_form(
@@ -151,24 +172,32 @@ class IovoConfigFlow(
         user_input: dict[str, Any] | None = None,
     ) -> ConfigFlowResult:
         data = user_input or {}
+        resource = str(data.get(CONF_RESOURCE, ""))
 
-        if data.get(CONF_RESOURCE) != RESOURCE_FLOORS:
+        if resource not in {RESOURCE_FLOORS, RESOURCE_DEVICES}:
             return self.async_abort(reason="unsupported")
 
         parent_entry_id = str(data.get(CONF_PARENT_ENTRY_ID, "")).strip()
         if not parent_entry_id:
             return self.async_abort(reason="unsupported")
 
-        await self.async_set_unique_id(FLOORS_UNIQUE_ID)
+        if resource == RESOURCE_FLOORS:
+            unique_id = FLOORS_UNIQUE_ID
+            title = FLOORS_ENTRY_TITLE
+        else:
+            unique_id = DEVICES_UNIQUE_ID
+            title = DEVICES_ENTRY_TITLE
+
+        await self.async_set_unique_id(unique_id)
         self._abort_if_unique_id_configured()
 
         return self.async_create_entry(
-            title=FLOORS_ENTRY_TITLE,
+            title=title,
             data={
-                CONF_RESOURCE: RESOURCE_FLOORS,
+                CONF_RESOURCE: resource,
                 CONF_PARENT_ENTRY_ID: parent_entry_id,
             },
-            options=self._default_options(),
+            options=self._default_options(resource),
         )
 
     async def async_step_reauth(
@@ -232,7 +261,16 @@ class IovoConfigFlow(
         )
 
     @staticmethod
-    def _default_options() -> dict[str, Any]:
+    def _default_options(resource: str) -> dict[str, Any]:
+        if resource == RESOURCE_DEVICES:
+            return {
+                CONF_DEVICE_SELECTION_MODE: DEFAULT_DEVICE_SELECTION_MODE,
+                CONF_DEVICE_TYPES: [],
+                CONF_DEVICE_ENTITIES: [],
+                CONF_DEVICE_EXCLUDED_ENTITIES: [],
+                CONF_DEVICE_STATE_SYNC: DEFAULT_DEVICE_STATE_SYNC,
+            }
+
         return {
             CONF_AUTO_SYNC: DEFAULT_AUTO_SYNC,
             CONF_SYNC_DIRECTION: DEFAULT_SYNC_DIRECTION,
@@ -258,6 +296,21 @@ class IovoOptionsFlow(
         self,
         user_input: dict[str, Any] | None = None,
     ) -> ConfigFlowResult:
+        resource = self.config_entry.data.get(
+            CONF_RESOURCE,
+            RESOURCE_ROOMS,
+        )
+
+        if resource == RESOURCE_DEVICES:
+            return self.async_show_menu(
+                step_id="init",
+                menu_options=[
+                    "device_selection",
+                    "sync",
+                    "device_states",
+                ],
+            )
+
         return self.async_show_menu(
             step_id="init",
             menu_options=[
@@ -266,11 +319,147 @@ class IovoOptionsFlow(
             ],
         )
 
+    async def async_step_device_selection(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ) -> ConfigFlowResult:
+        options = dict(self.config_entry.options)
+
+        if user_input is not None:
+            options.update(user_input)
+            return self.async_create_entry(data=options)
+
+        mode_options = [
+            SelectOptionDict(label="Alle unterstützten Entitäten", value=DEVICE_SELECTION_ALL),
+            SelectOptionDict(label="Nach Arten auswählen", value=DEVICE_SELECTION_TYPES),
+            SelectOptionDict(label="Einzelne Entitäten auswählen", value=DEVICE_SELECTION_ENTITIES),
+            SelectOptionDict(
+                label="Arten und einzelne Entitäten kombinieren",
+                value=DEVICE_SELECTION_TYPES_AND_ENTITIES,
+            ),
+        ]
+        type_options = [
+            SelectOptionDict(
+                label=DEVICE_TYPE_LABELS.get(device_type, device_type),
+                value=device_type,
+            )
+            for device_type in AUTO_DEVICE_TYPES
+        ]
+
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_DEVICE_SELECTION_MODE,
+                    default=options.get(
+                        CONF_DEVICE_SELECTION_MODE,
+                        DEFAULT_DEVICE_SELECTION_MODE,
+                    ),
+                ): SelectSelector(
+                    SelectSelectorConfig(options=mode_options)
+                ),
+                vol.Optional(
+                    CONF_DEVICE_TYPES,
+                    default=list(options.get(CONF_DEVICE_TYPES, [])),
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=type_options,
+                        multiple=True,
+                    )
+                ),
+                vol.Optional(
+                    CONF_DEVICE_ENTITIES,
+                    default=list(options.get(CONF_DEVICE_ENTITIES, [])),
+                ): EntitySelector(
+                    EntitySelectorConfig(multiple=True)
+                ),
+                vol.Optional(
+                    CONF_DEVICE_EXCLUDED_ENTITIES,
+                    default=list(
+                        options.get(
+                            CONF_DEVICE_EXCLUDED_ENTITIES,
+                            [],
+                        )
+                    ),
+                ): EntitySelector(
+                    EntitySelectorConfig(multiple=True)
+                ),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="device_selection",
+            data_schema=schema,
+        )
+
+    async def async_step_device_states(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ) -> ConfigFlowResult:
+        options = dict(self.config_entry.options)
+
+        if user_input is not None:
+            options.update(user_input)
+            return self.async_create_entry(data=options)
+
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_DEVICE_STATE_SYNC,
+                    default=bool(
+                        options.get(
+                            CONF_DEVICE_STATE_SYNC,
+                            DEFAULT_DEVICE_STATE_SYNC,
+                        )
+                    ),
+                ): bool,
+            }
+        )
+
+        return self.async_show_form(
+            step_id="device_states",
+            data_schema=schema,
+        )
+
     async def async_step_sync(
         self,
         user_input: dict[str, Any] | None = None,
     ) -> ConfigFlowResult:
         errors: dict[str, str] = {}
+        resource = self.config_entry.data.get(
+            CONF_RESOURCE,
+            RESOURCE_ROOMS,
+        )
+
+        if resource == RESOURCE_DEVICES:
+            if user_input is not None:
+                runtime = self.config_entry.runtime_data
+
+                try:
+                    result = await runtime.sync.async_sync(
+                        DIRECTION_HA_TO_IOVO
+                    )
+                except IovoAuthError:
+                    errors["base"] = "invalid_auth"
+                except IovoPermissionError:
+                    errors["base"] = "access_denied"
+                except IovoConnectionError:
+                    errors["base"] = "cannot_connect"
+                except IovoApiError:
+                    errors["base"] = "api_error"
+                except Exception:
+                    errors["base"] = "unknown"
+                else:
+                    self._sync_result = self._format_sync_result(
+                        result,
+                        RESOURCE_DEVICES,
+                    )
+                    return await self.async_step_sync_done()
+
+            return self.async_show_form(
+                step_id="sync",
+                data_schema=vol.Schema({}),
+                errors=errors,
+            )
 
         if user_input is not None:
             direction = user_input[CONF_SYNC_DIRECTION]
@@ -289,10 +478,6 @@ class IovoOptionsFlow(
             except Exception:
                 errors["base"] = "unknown"
             else:
-                resource = self.config_entry.data.get(
-                    CONF_RESOURCE,
-                    RESOURCE_ROOMS,
-                )
                 self._sync_result = self._format_sync_result(
                     result,
                     str(resource),
@@ -411,6 +596,9 @@ class IovoOptionsFlow(
         result: dict[str, Any],
         resource: str,
     ) -> str:
+        if resource == RESOURCE_DEVICES and result.get("empty_selection"):
+            return "Keine Geräte ausgewählt."
+
         created = int(result.get("created", 0))
         updated = int(result.get("updated", 0))
         linked = int(result.get("linked", 0))
@@ -419,8 +607,15 @@ class IovoOptionsFlow(
         skipped = int(result.get("skipped", 0))
         conflicts = int(result.get("conflicts", 0))
 
-        singular = "Stockwerk" if resource == RESOURCE_FLOORS else "Raum"
-        plural = "Stockwerke" if resource == RESOURCE_FLOORS else "Räume"
+        if resource == RESOURCE_FLOORS:
+            singular = "Stockwerk"
+            plural = "Stockwerke"
+        elif resource == RESOURCE_DEVICES:
+            singular = "Gerät"
+            plural = "Geräte"
+        else:
+            singular = "Raum"
+            plural = "Räume"
 
         def count_text(count: int, singular_text: str, plural_text: str) -> str:
             return f"{count} {singular_text if count == 1 else plural_text}"

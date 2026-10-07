@@ -41,16 +41,20 @@
                 "title": "Synchronisierung",
                 "menu_options": {
                     "sync": "Jetzt synchronisieren",
-                    "automatic": "Automatische Synchronisierung"
+                    "automatic": "Automatische Synchronisierung",
+                    "device_selection": "Geräteauswahl",
+                    "device_states": "Zustandsänderungen"
                 },
                 "menu_option_descriptions": {
                     "sync": "Synchronisieren Sie diesen Eintrag einmalig in der gewünschten Richtung.",
-                    "automatic": "Legen Sie fest, ob und wie dieser Eintrag regelmäßig synchronisiert wird."
+                    "automatic": "Legen Sie fest, ob und wie dieser Eintrag regelmäßig synchronisiert wird.",
+                    "device_selection": "Legen Sie fest, welche Home-Assistant-Entitäten an iovo|doc übertragen werden.",
+                    "device_states": "Legen Sie fest, ob Änderungen ausgewählter Entitäten automatisch an iovo|doc übertragen werden."
                 }
             },
             "sync": {
                 "title": "Jetzt synchronisieren",
-                "description": "Wählen Sie aus, in welche Richtung die Daten übertragen werden sollen.",
+                "description": "Starten Sie die Synchronisierung. Bei Räumen und Stockwerken kann zusätzlich die Richtung gewählt werden.",
                 "data": {
                     "sync_direction": "Richtung"
                 }
@@ -73,6 +77,32 @@
                     "sync_direction": "Legt fest, in welche Richtung Änderungen übertragen werden.",
                     "sync_interval": "Zeit zwischen zwei automatischen Synchronisierungen.",
                     "conflict_priority": "Legt fest, welche Seite gewinnt, wenn dieselben Daten auf beiden Seiten geändert wurden."
+                }
+            },
+            "device_selection": {
+                "title": "Geräteauswahl",
+                "description": "Wählen Sie die Entitäten aus, die von Home Assistant nach iovo|doc übertragen werden. Ausschlüsse haben immer Vorrang.",
+                "data": {
+                    "device_selection_mode": "Auswahl",
+                    "device_types": "Arten",
+                    "device_entities": "Einzelne Entitäten",
+                    "device_excluded_entities": "Ausgeschlossene Entitäten"
+                },
+                "data_description": {
+                    "device_selection_mode": "Legt fest, ob alle unterstützten Entitäten, Arten, einzelne Entitäten oder eine Kombination verwendet werden.",
+                    "device_types": "Alle automatisch erkannten Entitäten dieser iovo-Gerätearten werden berücksichtigt.",
+                    "device_entities": "Diese Entitäten werden zusätzlich oder ausschließlich berücksichtigt, abhängig von der Auswahl.",
+                    "device_excluded_entities": "Diese Entitäten werden niemals übertragen."
+                }
+            },
+            "device_states": {
+                "title": "Zustandsänderungen",
+                "description": "Die Stammdaten werden nur bei einer manuellen Geräteübertragung gesendet. Optional können Änderungen der ausgewählten Entitäten danach automatisch an iovo|doc übertragen werden.",
+                "data": {
+                    "device_state_sync": "Zustandsänderungen automatisch übertragen"
+                },
+                "data_description": {
+                    "device_state_sync": "Überträgt Änderungen von Zustand und freigegebenen Zusatzwerten der ausgewählten Entitäten automatisch an iovo|doc."
                 }
             }
         },

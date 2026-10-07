@@ -17,6 +17,7 @@ from aiohttp.hdrs import ACCEPT, AUTHORIZATION, USER_AGENT
 from .const import (
     API_BASE_URL,
     CONNECTION_ENDPOINT,
+    DEFAULT_DEVICES_ENDPOINT,
     DEFAULT_FLOORS_ENDPOINT,
     DEFAULT_ROOMS_ENDPOINT,
 )
@@ -67,6 +68,16 @@ class IovoApiClient:
         return DEFAULT_ROOMS_ENDPOINT
 
     @property
+    def devices_endpoint(self) -> str:
+        devices = self._resources.get("devices", {})
+        endpoint = devices.get("endpoint")
+
+        if isinstance(endpoint, str) and endpoint.startswith("/"):
+            return endpoint
+
+        return DEFAULT_DEVICES_ENDPOINT
+
+    @property
     def floors_endpoint(self) -> str:
         floors = self._resources.get("floors", {})
         endpoint = floors.get("endpoint")
@@ -75,6 +86,16 @@ class IovoApiClient:
             return endpoint
 
         return DEFAULT_FLOORS_ENDPOINT
+
+    @property
+    def can_create_devices(self) -> bool:
+        devices = self._resources.get("devices", {})
+        return bool(devices.get("create", False))
+
+    @property
+    def can_update_devices(self) -> bool:
+        devices = self._resources.get("devices", {})
+        return bool(devices.get("update", True))
 
     @property
     def can_create_floors(self) -> bool:
@@ -345,6 +366,45 @@ class IovoApiClient:
                 "Floors_idFloors": floor_id,
             },
         )
+
+    async def async_save_device(
+        self,
+        data: dict[str, Any],
+    ) -> dict[str, Any]:
+        if not self._resources:
+            await self.async_connect()
+
+        if not self.can_create_devices and not self.can_update_devices:
+            raise IovoUnsupportedError(
+                "iovo|doc erlaubt derzeit keine Geräteübertragung."
+            )
+
+        device_id = self._clean_string(data.get("device_id"))
+        if not device_id:
+            raise IovoApiError("Für das Gerät fehlt device_id.")
+
+        payload = await self._async_request(
+            "POST",
+            self.devices_endpoint,
+            json_data=data,
+        )
+        result = payload.get("data")
+
+        if not isinstance(result, dict):
+            raise IovoApiError(
+                "iovo|doc hat keine gültige Geräteantwort geliefert."
+            )
+
+        saved_id = result.get("id")
+        if saved_id is None:
+            raise IovoApiError(
+                "iovo|doc hat keine Geräte-ID zurückgegeben."
+            )
+
+        return {
+            "id": str(saved_id),
+            "created": bool(result.get("created", False)),
+        }
 
     def _authorization_header(self) -> str:
         encode_basic_auth = getattr(aiohttp, "encode_basic_auth", None)

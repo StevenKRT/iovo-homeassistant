@@ -18,7 +18,7 @@ Beim Hinzufügen der Integration wird nach dem Absenden der Zugangsdaten ausschl
 
 `GET https://api.iovodoc.de/Data/HomeAssistant`
 
-Die Ressourcen werden als getrennte Konfigurationseinträge geführt. Aktuell sind `Räume` und `Stockwerke` vorgesehen. `Stockwerke` verwendet dieselben Zugangsdaten wie der Eintrag `Räume`.
+Die Ressourcen werden als getrennte Konfigurationseinträge geführt. Aktuell sind `Räume`, `Stockwerke` und `Geräte` vorgesehen. `Stockwerke` und `Geräte` verwenden dieselben Zugangsdaten wie der Eintrag `Räume`.
 
 ## Räume
 
@@ -40,6 +40,21 @@ Mapping zwischen Home Assistant und iovo|doc:
 
 Die Stockwerkssynchronisierung legt keine Räume an. Sie ordnet nur bereits über `area.id` und `Rooms.identifiers` verbundene Räume einem Stockwerk zu.
 
+## Geräte
+
+Geräte werden ausschließlich von Home Assistant nach iovo|doc übertragen. Ein iovo|doc-Geräteeintrag entspricht dabei einer Home-Assistant-Entität und wird über `device_id = entity_id` wiedererkannt.
+
+In den Optionen des Eintrags `Geräte` kann gewählt werden:
+
+- alle unterstützten Entitäten
+- bestimmte automatisch erkannte Gerätearten
+- einzelne Entitäten
+- Arten und einzelne Entitäten kombiniert
+- einzelne Entitäten ausdrücklich ausschließen
+- Zustandsänderungen automatisch an iovo|doc übertragen
+
+Die Typzuordnung erfolgt nur bei eindeutigen Home-Assistant-Domains oder Geräteklassen. Generische Schalter bleiben `switch`, generische Sensoren bleiben `sensor`. Eine manuelle Umklassifizierung einzelner Entitäten ist für einen späteren Schritt vorgesehen.
+
 ## Automatik
 
-Die automatische Synchronisierung ist standardmäßig ausgeschaltet und kann je Konfigurationseintrag separat aktiviert werden.
+Die automatische regelmäßige Synchronisierung von Räumen und Stockwerken ist standardmäßig ausgeschaltet und kann je Konfigurationseintrag separat aktiviert werden. Geräte werden manuell übertragen; zusätzlich kann für ausgewählte Geräte eine laufende Zustandsübertragung aktiviert werden.

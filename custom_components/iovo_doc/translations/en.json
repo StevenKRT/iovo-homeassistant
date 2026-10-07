@@ -41,16 +41,20 @@
                 "title": "Synchronization",
                 "menu_options": {
                     "sync": "Synchronize now",
-                    "automatic": "Automatic synchronization"
+                    "automatic": "Automatic synchronization",
+                    "device_selection": "Device selection",
+                    "device_states": "State changes"
                 },
                 "menu_option_descriptions": {
                     "sync": "Synchronize this entry once in the selected direction.",
-                    "automatic": "Choose whether and how this entry is synchronized regularly."
+                    "automatic": "Choose whether and how this entry is synchronized regularly.",
+                    "device_selection": "Choose which Home Assistant entities are sent to iovo|doc.",
+                    "device_states": "Choose whether changes of selected entities are sent to iovo|doc automatically."
                 }
             },
             "sync": {
                 "title": "Synchronize now",
-                "description": "Choose the direction in which the data should be transferred.",
+                "description": "Start synchronization. Rooms and floors additionally allow choosing a direction.",
                 "data": {
                     "sync_direction": "Direction"
                 }
@@ -73,6 +77,32 @@
                     "sync_direction": "Defines the direction in which changes are transferred.",
                     "sync_interval": "Time between automatic synchronizations.",
                     "conflict_priority": "Defines which side wins if the same data was changed on both sides."
+                }
+            },
+            "device_selection": {
+                "title": "Device selection",
+                "description": "Choose the entities that are sent from Home Assistant to iovo|doc. Exclusions always take precedence.",
+                "data": {
+                    "device_selection_mode": "Selection",
+                    "device_types": "Types",
+                    "device_entities": "Individual entities",
+                    "device_excluded_entities": "Excluded entities"
+                },
+                "data_description": {
+                    "device_selection_mode": "Choose all supported entities, types, individual entities, or a combination.",
+                    "device_types": "All automatically recognized entities of these iovo device types are included.",
+                    "device_entities": "These entities are included additionally or exclusively depending on the selection.",
+                    "device_excluded_entities": "These entities are never transferred."
+                }
+            },
+            "device_states": {
+                "title": "State changes",
+                "description": "Master data is sent only during a manual device synchronization. Optionally, changes to selected entities can then be sent to iovo|doc automatically.",
+                "data": {
+                    "device_state_sync": "Transfer state changes automatically"
+                },
+                "data_description": {
+                    "device_state_sync": "Automatically transfers state changes and approved additional values of selected entities to iovo|doc."
                 }
             }
         },
