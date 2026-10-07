@@ -1,7 +1,7 @@
 {
     "domain": "iovo_doc",
     "name": "iovo|doc",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "config_flow": true,
     "single_config_entry": true,
     "integration_type": "hub",

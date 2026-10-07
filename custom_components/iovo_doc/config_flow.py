@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import socket
 
 import voluptuous as vol
 
@@ -80,7 +79,7 @@ async def _async_validate_credentials(
     password: str,
 ) -> None:
     client = IovoApiClient(
-        async_get_clientsession(hass, family=socket.AF_INET),
+        async_get_clientsession(hass),
         username,
         password,
     )

@@ -5,13 +5,14 @@ import json
 import logging
 from typing import Any
 
+import aiohttp
 from aiohttp import (
-    BasicAuth,
     ClientError,
     ClientResponse,
     ClientResponseError,
     ClientSession,
 )
+from aiohttp.hdrs import ACCEPT, AUTHORIZATION, USER_AGENT
 
 from .const import API_BASE_URL, CONNECTION_ENDPOINT, DEFAULT_ROOMS_ENDPOINT
 
@@ -171,6 +172,36 @@ class IovoApiClient:
             },
         )
 
+    def _authorization_header(self) -> str:
+        encode_basic_auth = getattr(aiohttp, "encode_basic_auth", None)
+
+        if encode_basic_auth is not None:
+            return encode_basic_auth(
+                self._username,
+                self._password,
+                encoding="utf-8",
+            )
+
+        return aiohttp.BasicAuth(
+            login=self._username,
+            password=self._password,
+            encoding="utf-8",
+        ).encode()
+
+    def _request_headers(self) -> dict[str, str]:
+        user_agent = self._session.headers.get(USER_AGENT)
+
+        if not user_agent:
+            raise IovoConnectionError(
+                "Die Home-Assistant-HTTP-Session enthält keinen User-Agent."
+            )
+
+        return {
+            ACCEPT: "application/json",
+            AUTHORIZATION: self._authorization_header(),
+            USER_AGENT: user_agent,
+        }
+
     async def _async_request(
         self,
         method: str,
@@ -179,21 +210,23 @@ class IovoApiClient:
         json_data: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         url = f"{API_BASE_URL}{endpoint}"
+        headers = self._request_headers()
 
         request_kwargs: dict[str, Any] = {
-            "auth": BasicAuth(
-                login=self._username,
-                password=self._password,
-                encoding="utf-8",
-            ),
-            "headers": {
-                "Accept": "application/json",
-            },
+            "headers": headers,
             "allow_redirects": False,
         }
 
         if json_data is not None:
             request_kwargs["json"] = json_data
+
+        _LOGGER.debug(
+            "iovo|doc API request %s %s, Basic Auth vorhanden: %s, User-Agent: %s",
+            method,
+            endpoint,
+            AUTHORIZATION in headers,
+            headers[USER_AGENT],
+        )
 
         try:
             async with asyncio.timeout(20):
@@ -241,8 +274,7 @@ class IovoApiClient:
 
         if response.status == 403:
             _LOGGER.warning(
-                "iovo|doc API hat %s %s trotz übermittelter Basic Auth "
-                "mit HTTP 403 abgelehnt. Antwort: %s",
+                "iovo|doc API hat %s %s mit HTTP 403 abgelehnt. Antwort: %s",
                 method,
                 endpoint,
                 body[:500],
