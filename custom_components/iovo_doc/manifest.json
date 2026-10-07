@@ -1,0 +1,15 @@
+{
+    "domain": "iovo_doc",
+    "name": "iovo|doc",
+    "version": "0.1.0",
+    "config_flow": true,
+    "single_config_entry": true,
+    "integration_type": "hub",
+    "iot_class": "cloud_polling",
+    "documentation": "https://github.com/Mastershort/iovo-homeassistant",
+    "issue_tracker": "https://github.com/Mastershort/iovo-homeassistant/issues",
+    "codeowners": [
+        "@Mastershort"
+    ],
+    "requirements": []
+}

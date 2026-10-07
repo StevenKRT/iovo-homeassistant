@@ -1,0 +1,85 @@
+{
+    "title": "iovo|doc",
+    "config": {
+        "step": {
+            "user": {
+                "title": "Set up iovo|doc",
+                "description": "Enter the credentials created in iovo|doc for Home Assistant.",
+                "data": {
+                    "api_key": "API key",
+                    "secret": "Secret"
+                },
+                "data_description": {
+                    "api_key": "API key from iovo|doc.",
+                    "secret": "Secret from iovo|doc."
+                }
+            },
+            "reauth_confirm": {
+                "title": "Update iovo|doc access",
+                "description": "Enter the current credentials from iovo|doc.",
+                "data": {
+                    "api_key": "API key",
+                    "secret": "Secret"
+                }
+            }
+        },
+        "error": {
+            "invalid_auth": "The credentials were not accepted by iovo|doc.",
+            "cannot_connect": "iovo|doc is currently unavailable.",
+            "unsupported": "The iovo|doc interface does not support this Home Assistant integration yet.",
+            "api_error": "The iovo|doc request could not be processed.",
+            "unknown": "The connection to iovo|doc could not be established."
+        },
+        "create_entry": {
+            "default": "iovo|doc was connected. No synchronization was started."
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "iovo|doc",
+                "menu_options": {
+                    "sync": "Synchronize rooms now",
+                    "automatic": "Automatic synchronization"
+                },
+                "menu_option_descriptions": {
+                    "sync": "Synchronize rooms once in the selected direction.",
+                    "automatic": "Choose whether and how rooms are synchronized regularly."
+                }
+            },
+            "sync": {
+                "title": "Synchronize rooms",
+                "description": "Synchronization starts only after you confirm this form.",
+                "data": {
+                    "sync_direction": "Direction"
+                }
+            },
+            "sync_done": {
+                "title": "Synchronization completed",
+                "description": "{result}"
+            },
+            "automatic": {
+                "title": "Automatic synchronization",
+                "description": "Automatic synchronization is disabled by default. After enabling it, the first synchronization starts only after the selected interval has elapsed.",
+                "data": {
+                    "auto_sync": "Automatic synchronization",
+                    "sync_direction": "Direction",
+                    "sync_interval": "Interval in minutes",
+                    "conflict_priority": "Priority for simultaneous changes"
+                },
+                "data_description": {
+                    "auto_sync": "Turns regular room synchronization on or off.",
+                    "sync_direction": "Defines the direction in which changes are transferred.",
+                    "sync_interval": "Time between automatic synchronizations.",
+                    "conflict_priority": "Defines which side wins if the same room was changed on both sides."
+                }
+            }
+        },
+        "error": {
+            "invalid_auth": "The credentials were not accepted by iovo|doc.",
+            "cannot_connect": "iovo|doc is currently unavailable.",
+            "api_error": "The iovo|doc request could not be processed.",
+            "unknown": "Synchronization could not be completed."
+        }
+    }
+}
