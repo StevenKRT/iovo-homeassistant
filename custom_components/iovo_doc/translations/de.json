@@ -6,29 +6,30 @@
                 "title": "iovo|doc einrichten",
                 "description": "Geben Sie die Zugangsdaten ein, die Sie in iovo|doc für Home Assistant erstellt haben.",
                 "data": {
-                    "username": "API-Schlüssel",
-                    "password": "Geheimer Secret"
+                    "api_key": "API-Schlüssel",
+                    "secret": "Geheimer Secret"
                 },
                 "data_description": {
-                    "username": "API-Schlüssel aus iovo|doc.",
-                    "password": "Geheimer Secret aus iovo|doc."
+                    "api_key": "API-Schlüssel aus iovo|doc.",
+                    "secret": "Geheimer Secret aus iovo|doc."
                 }
             },
             "reauth_confirm": {
                 "title": "iovo|doc Zugang aktualisieren",
                 "description": "Geben Sie die aktuellen Zugangsdaten aus iovo|doc ein.",
                 "data": {
-                    "username": "API-Schlüssel",
-                    "password": "Geheimer Secret"
+                    "api_key": "API-Schlüssel",
+                    "secret": "Geheimer Secret"
                 }
             }
         },
         "error": {
-            "invalid_auth": "iovo|doc hat die Anmeldung abgelehnt. Prüfen Sie API-Schlüssel, Geheimen Secret und die API-Freigabe.",
+            "invalid_auth": "iovo|doc hat die Basic-Auth-Zugangsdaten nicht akzeptiert.",
             "cannot_connect": "iovo|doc ist derzeit nicht erreichbar.",
             "unsupported": "Die iovo|doc Schnittstelle unterstützt diese Home-Assistant-Integration noch nicht.",
             "api_error": "Die Anfrage an iovo|doc konnte nicht verarbeitet werden.",
-            "unknown": "Die Verbindung zu iovo|doc konnte nicht hergestellt werden."
+            "unknown": "Die Verbindung zu iovo|doc konnte nicht hergestellt werden.",
+            "access_denied": "iovo|doc hat den Zugriff abgelehnt. Im Home-Assistant-Protokoll steht, ob Basic Auth tatsächlich gesendet wurde."
         },
         "create_entry": {
             "default": "iovo|doc wurde verbunden. Es wurde keine Synchronisierung gestartet."
@@ -76,10 +77,11 @@
             }
         },
         "error": {
-            "invalid_auth": "iovo|doc hat die Anmeldung abgelehnt. Prüfen Sie API-Schlüssel, Geheimen Secret und die API-Freigabe.",
+            "invalid_auth": "iovo|doc hat die Basic-Auth-Zugangsdaten nicht akzeptiert.",
             "cannot_connect": "iovo|doc ist derzeit nicht erreichbar.",
             "api_error": "Die Anfrage an iovo|doc konnte nicht verarbeitet werden.",
-            "unknown": "Die Synchronisierung konnte nicht ausgeführt werden."
+            "unknown": "Die Synchronisierung konnte nicht ausgeführt werden.",
+            "access_denied": "iovo|doc hat den Zugriff abgelehnt. Im Home-Assistant-Protokoll steht, ob Basic Auth tatsächlich gesendet wurde."
         }
     }
 }

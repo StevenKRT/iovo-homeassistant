@@ -8,6 +8,8 @@ API_BASE_URL: Final = "https://api.iovodoc.de"
 CONNECTION_ENDPOINT: Final = "/Data/HomeAssistant"
 DEFAULT_ROOMS_ENDPOINT: Final = "/Data/Rooms"
 
+CONF_API_KEY: Final = "api_key"
+CONF_SECRET: Final = "secret"
 CONF_AUTO_SYNC: Final = "auto_sync"
 CONF_SYNC_DIRECTION: Final = "sync_direction"
 CONF_SYNC_INTERVAL: Final = "sync_interval"

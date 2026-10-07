@@ -4,11 +4,11 @@ from dataclasses import dataclass
 
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import IovoApiClient
+from .const import CONF_API_KEY, CONF_SECRET
 from .sync import IovoRoomSync
 
 
@@ -29,21 +29,20 @@ async def async_migrate_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
 ) -> bool:
-    if entry.version == 1:
-        data = dict(entry.data)
+    data = dict(entry.data)
 
-        if "api_key" in data and CONF_USERNAME not in data:
-            data[CONF_USERNAME] = data.pop("api_key")
+    if "username" in data and CONF_API_KEY not in data:
+        data[CONF_API_KEY] = data.pop("username")
 
-        if "secret" in data and CONF_PASSWORD not in data:
-            data[CONF_PASSWORD] = data.pop("secret")
+    if "password" in data and CONF_SECRET not in data:
+        data[CONF_SECRET] = data.pop("password")
 
-        hass.config_entries.async_update_entry(
-            entry,
-            data=data,
-            version=2,
-            minor_version=0,
-        )
+    hass.config_entries.async_update_entry(
+        entry,
+        data=data,
+        version=3,
+        minor_version=0,
+    )
 
     return True
 
@@ -54,8 +53,8 @@ async def async_setup_entry(
 ) -> bool:
     client = IovoApiClient(
         async_get_clientsession(hass),
-        entry.data[CONF_USERNAME],
-        entry.data[CONF_PASSWORD],
+        entry.data[CONF_API_KEY],
+        entry.data[CONF_SECRET],
     )
 
     sync = IovoRoomSync(

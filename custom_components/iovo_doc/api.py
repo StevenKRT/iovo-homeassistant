@@ -43,12 +43,12 @@ class IovoApiClient:
     def __init__(
         self,
         session: ClientSession,
-        username: str,
-        password: str,
+        api_key: str,
+        secret: str,
     ) -> None:
         self._session = session
-        self._username = username
-        self._password = password
+        self._api_key = api_key
+        self._secret = secret
         self._resources: dict[str, dict[str, Any]] = {}
 
     @property
@@ -177,14 +177,14 @@ class IovoApiClient:
 
         if encode_basic_auth is not None:
             return encode_basic_auth(
-                self._username,
-                self._password,
+                self._api_key,
+                self._secret,
                 encoding="utf-8",
             )
 
         return aiohttp.BasicAuth(
-            login=self._username,
-            password=self._password,
+            login=self._api_key,
+            password=self._secret,
             encoding="utf-8",
         ).encode()
 
@@ -262,25 +262,44 @@ class IovoApiClient:
             response.status,
         )
 
+        sent_headers = response.request_info.headers
+        sent_authorization = sent_headers.get(AUTHORIZATION, "")
+        sent_user_agent = sent_headers.get(USER_AGENT, "")
+        sent_basic_auth = sent_authorization.startswith("Basic ")
+
         if response.status == 401:
             _LOGGER.warning(
-                "iovo|doc API hat %s %s mit HTTP 401 abgelehnt.",
+                "iovo|doc API %s %s -> HTTP 401; "
+                "Basic Auth tatsächlich gesendet: %s; User-Agent: %s",
                 method,
                 endpoint,
+                sent_basic_auth,
+                sent_user_agent,
             )
             raise IovoAuthError(
-                "Die Zugangsdaten wurden von iovo|doc nicht akzeptiert."
+                "iovo|doc hat die Basic-Auth-Zugangsdaten nicht akzeptiert."
             )
 
         if response.status == 403:
             _LOGGER.warning(
-                "iovo|doc API hat %s %s mit HTTP 403 abgelehnt. Antwort: %s",
+                "iovo|doc API %s %s -> HTTP 403; "
+                "Basic Auth tatsächlich gesendet: %s; User-Agent: %s; "
+                "Antwort: %s",
                 method,
                 endpoint,
+                sent_basic_auth,
+                sent_user_agent,
                 body[:500],
             )
+
+            if sent_basic_auth:
+                raise IovoPermissionError(
+                    "iovo|doc hat HTTP 403 zurückgegeben, obwohl Basic Auth "
+                    "tatsächlich gesendet wurde."
+                )
+
             raise IovoPermissionError(
-                "iovo|doc hat den API-Zugriff mit HTTP 403 abgelehnt."
+                "Home Assistant hat den Request ohne wirksame Basic Auth gesendet."
             )
 
         if 300 <= response.status < 400:

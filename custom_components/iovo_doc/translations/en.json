@@ -6,29 +6,30 @@
                 "title": "Set up iovo|doc",
                 "description": "Enter the credentials created in iovo|doc for Home Assistant.",
                 "data": {
-                    "username": "API key",
-                    "password": "Secret"
+                    "api_key": "API key",
+                    "secret": "Secret"
                 },
                 "data_description": {
-                    "username": "API key from iovo|doc.",
-                    "password": "Secret from iovo|doc."
+                    "api_key": "API key from iovo|doc.",
+                    "secret": "Secret from iovo|doc."
                 }
             },
             "reauth_confirm": {
                 "title": "Update iovo|doc access",
                 "description": "Enter the current credentials from iovo|doc.",
                 "data": {
-                    "username": "API key",
-                    "password": "Secret"
+                    "api_key": "API key",
+                    "secret": "Secret"
                 }
             }
         },
         "error": {
-            "invalid_auth": "iovo|doc rejected the login. Check the API key, secret and API access permission.",
+            "invalid_auth": "iovo|doc did not accept the Basic Auth credentials.",
             "cannot_connect": "iovo|doc is currently unavailable.",
             "unsupported": "The iovo|doc interface does not support this Home Assistant integration yet.",
             "api_error": "The iovo|doc request could not be processed.",
-            "unknown": "The connection to iovo|doc could not be established."
+            "unknown": "The connection to iovo|doc could not be established.",
+            "access_denied": "iovo|doc denied access. The Home Assistant log shows whether Basic Auth was actually sent."
         },
         "create_entry": {
             "default": "iovo|doc was connected. No synchronization was started."
@@ -76,10 +77,11 @@
             }
         },
         "error": {
-            "invalid_auth": "iovo|doc rejected the login. Check the API key, secret and API access permission.",
+            "invalid_auth": "iovo|doc did not accept the Basic Auth credentials.",
             "cannot_connect": "iovo|doc is currently unavailable.",
             "api_error": "The iovo|doc request could not be processed.",
-            "unknown": "Synchronization could not be completed."
+            "unknown": "Synchronization could not be completed.",
+            "access_denied": "iovo|doc denied access. The Home Assistant log shows whether Basic Auth was actually sent."
         }
     }
 }
