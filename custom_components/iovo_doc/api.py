@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from typing import Any
 
 import aiohttp
@@ -195,6 +196,12 @@ class IovoApiClient:
             raise IovoConnectionError(
                 "Die Home-Assistant-HTTP-Session enthält keinen User-Agent."
             )
+
+        user_agent = re.sub(
+            r"\s+Python/[^\s]+$",
+            "",
+            user_agent,
+        )
 
         return {
             ACCEPT: "application/json",
