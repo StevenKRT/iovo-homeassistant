@@ -18,7 +18,7 @@ Beim Hinzufügen der Integration wird nach dem Absenden der Zugangsdaten ausschl
 
 `GET https://api.iovodoc.de/Data/HomeAssistant`
 
-Der sichtbare Konfigurationseintrag heißt `Räume`. Weitere Ressourcenarten können später als eigene Einträge ergänzt werden.
+Die Ressourcen werden als getrennte Konfigurationseinträge geführt. Aktuell sind `Räume` und `Stockwerke` vorgesehen. `Stockwerke` verwendet dieselben Zugangsdaten wie der Eintrag `Räume`.
 
 ## Räume
 
@@ -27,23 +27,19 @@ Mapping zwischen Home Assistant und iovo|doc:
 - Home-Assistant-Bereich `name` -> iovo|doc `description`
 - Home-Assistant-Bereich `id` -> iovo|doc `identifiers`
 
-`idRooms` bleibt eine interne iovo|doc-ID und wird beim Anlegen von iovo|doc selbst erzeugt.
+`idRooms` bleibt eine interne iovo|doc-ID.
 
-Bei Home Assistant -> iovo|doc sucht der Server zuerst nach `identifiers = area.id`. Wird ein Raum gefunden, wird er aktualisiert. Wird keiner gefunden, wird ein neuer Raum angelegt.
+## Stockwerke
 
-Bei bestehenden iovo|doc-Räumen ohne `identifiers` kann die Integration einen eindeutig gleichnamigen Home-Assistant-Bereich einmalig zuordnen und anschließend dessen `area.id` in `identifiers` hinterlegen.
+Mapping zwischen Home Assistant und iovo|doc:
 
-## API
+- Home-Assistant-Stockwerk `floor_id` -> iovo|doc `identifiers`
+- Home-Assistant-Stockwerk `name` -> iovo|doc `description`
+- Home-Assistant-Stockwerk `level` -> iovo|doc `level`
+- Home-Assistant-Bereich `floor_id` -> iovo|doc `Rooms.Floors_idFloors` über die bereits synchronisierten Kennungen
 
-Zum Repository gehören:
-
-- `iovo-api/HomeAssistant.php`
-- `iovo-api/Rooms.php`
-
-`/Data/HomeAssistant` meldet für Räume Lesen, Ändern und Anlegen als unterstützt.
-
-`POST /Data/Rooms` unterstützt Update und Insert. Die Zuordnung erfolgt über `identifiers`.
+Die Stockwerkssynchronisierung legt keine Räume an. Sie ordnet nur bereits über `area.id` und `Rooms.identifiers` verbundene Räume einem Stockwerk zu.
 
 ## Automatik
 
-Die automatische Synchronisierung ist standardmäßig ausgeschaltet und kann in den Optionen des Eintrags `Räume` aktiviert werden.
+Die automatische Synchronisierung ist standardmäßig ausgeschaltet und kann je Konfigurationseintrag separat aktiviert werden.

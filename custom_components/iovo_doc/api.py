@@ -14,7 +14,12 @@ from aiohttp import (
 )
 from aiohttp.hdrs import ACCEPT, AUTHORIZATION, USER_AGENT
 
-from .const import API_BASE_URL, CONNECTION_ENDPOINT, DEFAULT_ROOMS_ENDPOINT
+from .const import (
+    API_BASE_URL,
+    CONNECTION_ENDPOINT,
+    DEFAULT_FLOORS_ENDPOINT,
+    DEFAULT_ROOMS_ENDPOINT,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -60,6 +65,26 @@ class IovoApiClient:
             return endpoint
 
         return DEFAULT_ROOMS_ENDPOINT
+
+    @property
+    def floors_endpoint(self) -> str:
+        floors = self._resources.get("floors", {})
+        endpoint = floors.get("endpoint")
+
+        if isinstance(endpoint, str) and endpoint.startswith("/"):
+            return endpoint
+
+        return DEFAULT_FLOORS_ENDPOINT
+
+    @property
+    def can_create_floors(self) -> bool:
+        floors = self._resources.get("floors", {})
+        return bool(floors.get("create", False))
+
+    @property
+    def can_update_floors(self) -> bool:
+        floors = self._resources.get("floors", {})
+        return bool(floors.get("update", True))
 
     @property
     def can_create_rooms(self) -> bool:
@@ -148,6 +173,9 @@ class IovoApiClient:
                     "handsanitizer_sum": self._clean_string(
                         room.get("handsanitizer_sum")
                     ),
+                    "Floors_idFloors": self._clean_string(
+                        room.get("Floors_idFloors")
+                    ),
                 }
             )
 
@@ -200,6 +228,123 @@ class IovoApiClient:
             "id": str(saved_id),
             "created": created,
         }
+
+    async def async_get_floors(self) -> list[dict[str, Any]]:
+        payload = await self._async_request(
+            "GET",
+            self.floors_endpoint,
+        )
+
+        data = payload.get("data", [])
+
+        if data is None:
+            return []
+
+        if not isinstance(data, list):
+            raise IovoApiError(
+                "Die Stockwerksdaten von iovo|doc konnten nicht verarbeitet werden."
+            )
+
+        floors: list[dict[str, Any]] = []
+
+        for floor in data:
+            if not isinstance(floor, dict):
+                continue
+
+            floor_id = floor.get("id")
+            name = floor.get("text")
+
+            if floor_id is None:
+                continue
+
+            if not isinstance(name, str) or not name.strip():
+                continue
+
+            level_value = floor.get("level")
+            level: int | None = None
+
+            if level_value not in (None, ""):
+                try:
+                    level = int(level_value)
+                except (TypeError, ValueError):
+                    level = None
+
+            floors.append(
+                {
+                    "id": str(floor_id),
+                    "name": name.strip(),
+                    "identifiers": self._clean_string(floor.get("identifiers")),
+                    "level": level,
+                }
+            )
+
+        return floors
+
+    async def async_save_floor(
+        self,
+        ha_floor_id: str,
+        name: str,
+        level: int | None,
+        iovo_floor_id: str | None = None,
+    ) -> dict[str, Any]:
+        if iovo_floor_id is None and not self.can_create_floors:
+            raise IovoUnsupportedError(
+                "iovo|doc erlaubt derzeit keine neuen Stockwerke."
+            )
+
+        if iovo_floor_id is not None and not self.can_update_floors:
+            raise IovoUnsupportedError(
+                "iovo|doc erlaubt derzeit keine Änderungen an Stockwerken."
+            )
+
+        data: dict[str, Any] = {
+            "description": name.strip(),
+            "identifiers": ha_floor_id,
+            "level": level,
+        }
+
+        if iovo_floor_id is not None:
+            data["floorID"] = int(iovo_floor_id)
+
+        payload = await self._async_request(
+            "POST",
+            self.floors_endpoint,
+            json_data=data,
+        )
+        result = payload.get("data")
+
+        if isinstance(result, dict):
+            saved_id = result.get("id", iovo_floor_id)
+            created = bool(result.get("created", iovo_floor_id is None))
+        else:
+            saved_id = iovo_floor_id if iovo_floor_id is not None else result
+            created = iovo_floor_id is None
+
+        if saved_id is None:
+            raise IovoApiError(
+                "iovo|doc hat keine Stockwerks-ID zurückgegeben."
+            )
+
+        return {
+            "id": str(saved_id),
+            "created": created,
+        }
+
+    async def async_set_room_floor(
+        self,
+        room_id: str,
+        iovo_floor_id: str | int | None,
+    ) -> None:
+        floor_id = 0 if iovo_floor_id in (None, "") else int(iovo_floor_id)
+
+        await self._async_request(
+            "POST",
+            self.rooms_endpoint,
+            json_data={
+                "roomID": int(room_id),
+                "Floors_idFloors": floor_id,
+            },
+        )
 
     def _authorization_header(self) -> str:
         encode_basic_auth = getattr(aiohttp, "encode_basic_auth", None)

@@ -38,19 +38,19 @@
     "options": {
         "step": {
             "init": {
-                "title": "Rooms",
+                "title": "Synchronization",
                 "menu_options": {
-                    "sync": "Synchronize rooms now",
+                    "sync": "Synchronize now",
                     "automatic": "Automatic synchronization"
                 },
                 "menu_option_descriptions": {
-                    "sync": "Synchronize rooms once in the selected direction.",
-                    "automatic": "Choose whether and how rooms are synchronized regularly."
+                    "sync": "Synchronize this entry once in the selected direction.",
+                    "automatic": "Choose whether and how this entry is synchronized regularly."
                 }
             },
             "sync": {
-                "title": "Synchronize rooms",
-                "description": "Choose the direction in which rooms should be transferred.",
+                "title": "Synchronize now",
+                "description": "Choose the direction in which the data should be transferred.",
                 "data": {
                     "sync_direction": "Direction"
                 }
@@ -61,7 +61,7 @@
             },
             "automatic": {
                 "title": "Automatic synchronization",
-                "description": "Choose whether rooms should be synchronized regularly.",
+                "description": "Choose whether the data should be synchronized regularly.",
                 "data": {
                     "auto_sync": "Automatic synchronization",
                     "sync_direction": "Direction",
@@ -69,10 +69,10 @@
                     "conflict_priority": "Priority for simultaneous changes"
                 },
                 "data_description": {
-                    "auto_sync": "Turns regular room synchronization on or off.",
+                    "auto_sync": "Turns regular synchronization on or off.",
                     "sync_direction": "Defines the direction in which changes are transferred.",
                     "sync_interval": "Time between automatic synchronizations.",
-                    "conflict_priority": "Defines which side wins if the same room was changed on both sides."
+                    "conflict_priority": "Defines which side wins if the same data was changed on both sides."
                 }
             }
         },

@@ -38,19 +38,19 @@
     "options": {
         "step": {
             "init": {
-                "title": "Räume",
+                "title": "Synchronisierung",
                 "menu_options": {
-                    "sync": "Räume jetzt synchronisieren",
+                    "sync": "Jetzt synchronisieren",
                     "automatic": "Automatische Synchronisierung"
                 },
                 "menu_option_descriptions": {
-                    "sync": "Synchronisieren Sie Räume einmalig in der gewünschten Richtung.",
-                    "automatic": "Legen Sie fest, ob und wie Räume regelmäßig synchronisiert werden."
+                    "sync": "Synchronisieren Sie diesen Eintrag einmalig in der gewünschten Richtung.",
+                    "automatic": "Legen Sie fest, ob und wie dieser Eintrag regelmäßig synchronisiert wird."
                 }
             },
             "sync": {
-                "title": "Räume synchronisieren",
-                "description": "Wählen Sie aus, in welche Richtung die Räume übertragen werden sollen.",
+                "title": "Jetzt synchronisieren",
+                "description": "Wählen Sie aus, in welche Richtung die Daten übertragen werden sollen.",
                 "data": {
                     "sync_direction": "Richtung"
                 }
@@ -61,7 +61,7 @@
             },
             "automatic": {
                 "title": "Automatische Synchronisierung",
-                "description": "Legen Sie fest, ob Räume regelmäßig abgeglichen werden sollen.",
+                "description": "Legen Sie fest, ob die Daten regelmäßig abgeglichen werden sollen.",
                 "data": {
                     "auto_sync": "Automatische Synchronisierung",
                     "sync_direction": "Richtung",
@@ -69,10 +69,10 @@
                     "conflict_priority": "Vorrang bei gleichzeitigen Änderungen"
                 },
                 "data_description": {
-                    "auto_sync": "Schaltet die regelmäßige Raumsynchronisierung ein oder aus.",
+                    "auto_sync": "Schaltet die regelmäßige Synchronisierung ein oder aus.",
                     "sync_direction": "Legt fest, in welche Richtung Änderungen übertragen werden.",
                     "sync_interval": "Zeit zwischen zwei automatischen Synchronisierungen.",
-                    "conflict_priority": "Legt fest, welche Seite gewinnt, wenn derselbe Raum auf beiden Seiten geändert wurde."
+                    "conflict_priority": "Legt fest, welche Seite gewinnt, wenn dieselben Daten auf beiden Seiten geändert wurden."
                 }
             }
         },

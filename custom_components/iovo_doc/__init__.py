@@ -5,7 +5,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 
+from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
@@ -15,12 +17,19 @@ from homeassistant.helpers.event import async_track_time_interval
 from .api import IovoApiClient
 from .const import (
     CONF_API_KEY,
+    CONF_PARENT_ENTRY_ID,
+    CONF_RESOURCE,
     CONF_SECRET,
     DOMAIN,
-    ENTRY_TITLE,
+    FLOORS_ENTRY_TITLE,
+    FLOORS_UNIQUE_ID,
     LOADED_VERSION,
-    UNIQUE_ID,
+    RESOURCE_FLOORS,
+    RESOURCE_ROOMS,
+    ROOMS_ENTRY_TITLE,
+    ROOMS_UNIQUE_ID,
 )
+from .floor_sync import IovoFloorSync
 from .sync import IovoRoomSync
 
 RESTART_ISSUE_ID = "restart_required"
@@ -30,7 +39,7 @@ VERSION_CHECK_INTERVAL = timedelta(minutes=1)
 @dataclass(slots=True)
 class IovoRuntimeData:
     client: IovoApiClient
-    sync: IovoRoomSync
+    sync: IovoRoomSync | IovoFloorSync
     cancel_version_check: Callable[[], None] | None = None
 
 
@@ -39,6 +48,41 @@ async def async_setup(
     config: dict,
 ) -> bool:
     return True
+
+
+def _resource_for_entry(entry: ConfigEntry) -> str:
+    return str(entry.data.get(CONF_RESOURCE, RESOURCE_ROOMS))
+
+
+def _find_entry(hass: HomeAssistant, entry_id: str) -> ConfigEntry | None:
+    for candidate in hass.config_entries.async_entries(DOMAIN):
+        if candidate.entry_id == entry_id:
+            return candidate
+    return None
+
+
+def _credentials_for_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+) -> tuple[str, str]:
+    resource = _resource_for_entry(entry)
+
+    if resource == RESOURCE_ROOMS:
+        return (
+            str(entry.data[CONF_API_KEY]),
+            str(entry.data[CONF_SECRET]),
+        )
+
+    parent_entry_id = str(entry.data.get(CONF_PARENT_ENTRY_ID, ""))
+    parent = _find_entry(hass, parent_entry_id)
+
+    if parent is None:
+        raise ValueError("Der zugehörige Räume-Eintrag wurde nicht gefunden.")
+
+    return (
+        str(parent.data[CONF_API_KEY]),
+        str(parent.data[CONF_SECRET]),
+    )
 
 
 async def async_migrate_entry(
@@ -53,12 +97,22 @@ async def async_migrate_entry(
     if "password" in data and CONF_SECRET not in data:
         data[CONF_SECRET] = data.pop("password")
 
+    resource = str(data.get(CONF_RESOURCE, RESOURCE_ROOMS))
+    data[CONF_RESOURCE] = resource
+
+    if resource == RESOURCE_FLOORS:
+        title = FLOORS_ENTRY_TITLE
+        unique_id = FLOORS_UNIQUE_ID
+    else:
+        title = ROOMS_ENTRY_TITLE
+        unique_id = ROOMS_UNIQUE_ID
+
     hass.config_entries.async_update_entry(
         entry,
         data=data,
-        title=ENTRY_TITLE,
-        unique_id=UNIQUE_ID,
-        version=4,
+        title=title,
+        unique_id=unique_id,
+        version=5,
         minor_version=0,
     )
 
@@ -69,37 +123,59 @@ async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
 ) -> bool:
-    if entry.title != ENTRY_TITLE or entry.unique_id != UNIQUE_ID:
+    resource = _resource_for_entry(entry)
+
+    if resource == RESOURCE_FLOORS:
+        expected_title = FLOORS_ENTRY_TITLE
+        expected_unique_id = FLOORS_UNIQUE_ID
+    else:
+        expected_title = ROOMS_ENTRY_TITLE
+        expected_unique_id = ROOMS_UNIQUE_ID
+
+    if entry.title != expected_title or entry.unique_id != expected_unique_id:
         hass.config_entries.async_update_entry(
             entry,
-            title=ENTRY_TITLE,
-            unique_id=UNIQUE_ID,
+            title=expected_title,
+            unique_id=expected_unique_id,
         )
 
+    api_key, secret = _credentials_for_entry(hass, entry)
     client = IovoApiClient(
         async_get_clientsession(hass),
-        entry.data[CONF_API_KEY],
-        entry.data[CONF_SECRET],
+        api_key,
+        secret,
     )
 
-    sync = IovoRoomSync(
-        hass,
-        entry.entry_id,
-        client,
-        dict(entry.options),
-    )
+    if resource == RESOURCE_FLOORS:
+        sync: IovoRoomSync | IovoFloorSync = IovoFloorSync(
+            hass,
+            entry.entry_id,
+            client,
+            dict(entry.options),
+        )
+    else:
+        sync = IovoRoomSync(
+            hass,
+            entry.entry_id,
+            client,
+            dict(entry.options),
+        )
+
     await sync.async_initialize()
 
-    await _async_check_restart_required(hass)
+    cancel_version_check: Callable[[], None] | None = None
 
-    async def _check_version(_: datetime) -> None:
+    if resource == RESOURCE_ROOMS:
         await _async_check_restart_required(hass)
 
-    cancel_version_check = async_track_time_interval(
-        hass,
-        _check_version,
-        VERSION_CHECK_INTERVAL,
-    )
+        async def _check_version(_: datetime) -> None:
+            await _async_check_restart_required(hass)
+
+        cancel_version_check = async_track_time_interval(
+            hass,
+            _check_version,
+            VERSION_CHECK_INTERVAL,
+        )
 
     entry.runtime_data = IovoRuntimeData(
         client=client,
@@ -111,7 +187,30 @@ async def async_setup_entry(
         entry.add_update_listener(_async_update_listener)
     )
 
+    if resource == RESOURCE_ROOMS:
+        await _async_ensure_floor_entry(hass, entry)
+
     return True
+
+
+async def _async_ensure_floor_entry(
+    hass: HomeAssistant,
+    rooms_entry: ConfigEntry,
+) -> None:
+    for candidate in hass.config_entries.async_entries(DOMAIN):
+        if candidate.unique_id == FLOORS_UNIQUE_ID:
+            return
+        if _resource_for_entry(candidate) == RESOURCE_FLOORS:
+            return
+
+    await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": config_entries.SOURCE_IMPORT},
+        data={
+            CONF_RESOURCE: RESOURCE_FLOORS,
+            CONF_PARENT_ENTRY_ID: rooms_entry.entry_id,
+        },
+    )
 
 
 async def async_unload_entry(
@@ -132,6 +231,16 @@ async def _async_update_listener(
     entry: ConfigEntry,
 ) -> None:
     await hass.config_entries.async_reload(entry.entry_id)
+
+    if _resource_for_entry(entry) != RESOURCE_ROOMS:
+        return
+
+    for candidate in hass.config_entries.async_entries(DOMAIN):
+        if (
+            candidate.entry_id != entry.entry_id
+            and _resource_for_entry(candidate) == RESOURCE_FLOORS
+        ):
+            await hass.config_entries.async_reload(candidate.entry_id)
 
 
 async def _async_check_restart_required(

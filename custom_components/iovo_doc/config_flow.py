@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 import voluptuous as vol
 
 from homeassistant import config_entries
@@ -25,9 +24,11 @@ from .api import (
 )
 from .const import (
     CONF_API_KEY,
-    CONF_SECRET,
     CONF_AUTO_SYNC,
     CONF_CONFLICT_PRIORITY,
+    CONF_PARENT_ENTRY_ID,
+    CONF_RESOURCE,
+    CONF_SECRET,
     CONF_SYNC_DIRECTION,
     CONF_SYNC_INTERVAL,
     CONFLICT_HA,
@@ -40,8 +41,12 @@ from .const import (
     DIRECTION_HA_TO_IOVO,
     DIRECTION_IOVO_TO_HA,
     DOMAIN,
-    ENTRY_TITLE,
-    UNIQUE_ID,
+    FLOORS_ENTRY_TITLE,
+    FLOORS_UNIQUE_ID,
+    RESOURCE_FLOORS,
+    RESOURCE_ROOMS,
+    ROOMS_ENTRY_TITLE,
+    ROOMS_UNIQUE_ID,
 )
 
 
@@ -90,7 +95,7 @@ class IovoConfigFlow(
     config_entries.ConfigFlow,
     domain=DOMAIN,
 ):
-    VERSION = 4
+    VERSION = 5
     MINOR_VERSION = 0
 
     async def async_step_user(
@@ -99,7 +104,7 @@ class IovoConfigFlow(
     ) -> ConfigFlowResult:
         errors: dict[str, str] = {}
 
-        await self.async_set_unique_id(UNIQUE_ID)
+        await self.async_set_unique_id(ROOMS_UNIQUE_ID)
         self._abort_if_unique_id_configured()
 
         if user_input is not None:
@@ -126,23 +131,44 @@ class IovoConfigFlow(
                 errors["base"] = "unknown"
             else:
                 return self.async_create_entry(
-                    title=ENTRY_TITLE,
+                    title=ROOMS_ENTRY_TITLE,
                     data={
                         CONF_API_KEY: api_key,
                         CONF_SECRET: secret,
+                        CONF_RESOURCE: RESOURCE_ROOMS,
                     },
-                    options={
-                        CONF_AUTO_SYNC: DEFAULT_AUTO_SYNC,
-                        CONF_SYNC_DIRECTION: DEFAULT_SYNC_DIRECTION,
-                        CONF_SYNC_INTERVAL: DEFAULT_SYNC_INTERVAL,
-                        CONF_CONFLICT_PRIORITY: DEFAULT_CONFLICT_PRIORITY,
-                    },
+                    options=self._default_options(),
                 )
 
         return self.async_show_form(
             step_id="user",
             data_schema=_credentials_schema(user_input),
             errors=errors,
+        )
+
+    async def async_step_import(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ) -> ConfigFlowResult:
+        data = user_input or {}
+
+        if data.get(CONF_RESOURCE) != RESOURCE_FLOORS:
+            return self.async_abort(reason="unsupported")
+
+        parent_entry_id = str(data.get(CONF_PARENT_ENTRY_ID, "")).strip()
+        if not parent_entry_id:
+            return self.async_abort(reason="unsupported")
+
+        await self.async_set_unique_id(FLOORS_UNIQUE_ID)
+        self._abort_if_unique_id_configured()
+
+        return self.async_create_entry(
+            title=FLOORS_ENTRY_TITLE,
+            data={
+                CONF_RESOURCE: RESOURCE_FLOORS,
+                CONF_PARENT_ENTRY_ID: parent_entry_id,
+            },
+            options=self._default_options(),
         )
 
     async def async_step_reauth(
@@ -157,6 +183,9 @@ class IovoConfigFlow(
     ) -> ConfigFlowResult:
         errors: dict[str, str] = {}
         entry = self._get_reauth_entry()
+
+        if entry.data.get(CONF_RESOURCE, RESOURCE_ROOMS) != RESOURCE_ROOMS:
+            return self.async_abort(reason="unsupported")
 
         if user_input is not None:
             api_key = str(user_input[CONF_API_KEY]).strip()
@@ -201,6 +230,15 @@ class IovoConfigFlow(
             ),
             errors=errors,
         )
+
+    @staticmethod
+    def _default_options() -> dict[str, Any]:
+        return {
+            CONF_AUTO_SYNC: DEFAULT_AUTO_SYNC,
+            CONF_SYNC_DIRECTION: DEFAULT_SYNC_DIRECTION,
+            CONF_SYNC_INTERVAL: DEFAULT_SYNC_INTERVAL,
+            CONF_CONFLICT_PRIORITY: DEFAULT_CONFLICT_PRIORITY,
+        }
 
     @staticmethod
     @callback
@@ -251,7 +289,14 @@ class IovoOptionsFlow(
             except Exception:
                 errors["base"] = "unknown"
             else:
-                self._sync_result = self._format_sync_result(result)
+                resource = self.config_entry.data.get(
+                    CONF_RESOURCE,
+                    RESOURCE_ROOMS,
+                )
+                self._sync_result = self._format_sync_result(
+                    result,
+                    str(resource),
+                )
                 return await self.async_step_sync_done()
 
         schema = vol.Schema(
@@ -364,24 +409,37 @@ class IovoOptionsFlow(
     @staticmethod
     def _format_sync_result(
         result: dict[str, Any],
+        resource: str,
     ) -> str:
         created = int(result.get("created", 0))
         updated = int(result.get("updated", 0))
         linked = int(result.get("linked", 0))
+        assigned = int(result.get("assigned", 0))
         unchanged = int(result.get("unchanged", 0))
         skipped = int(result.get("skipped", 0))
         conflicts = int(result.get("conflicts", 0))
 
+        singular = "Stockwerk" if resource == RESOURCE_FLOORS else "Raum"
+        plural = "Stockwerke" if resource == RESOURCE_FLOORS else "Räume"
+
+        def count_text(count: int, singular_text: str, plural_text: str) -> str:
+            return f"{count} {singular_text if count == 1 else plural_text}"
+
         parts: list[str] = []
 
         if created:
-            parts.append(f"{created} Räume angelegt")
+            parts.append(f"{count_text(created, singular, plural)} angelegt")
 
         if updated:
-            parts.append(f"{updated} Räume aktualisiert")
+            parts.append(f"{count_text(updated, singular, plural)} aktualisiert")
 
         if linked:
-            parts.append(f"{linked} Räume zugeordnet")
+            parts.append(f"{count_text(linked, singular, plural)} zugeordnet")
+
+        if assigned:
+            parts.append(
+                f"{count_text(assigned, 'Raumzuordnung', 'Raumzuordnungen')} aktualisiert"
+            )
 
         if unchanged:
             parts.append(f"{unchanged} unverändert")
