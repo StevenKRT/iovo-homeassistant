@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import probatio
+import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
@@ -44,12 +44,12 @@ from .const import (
 
 def _credentials_schema(
     values: dict[str, Any] | None = None,
-) -> probatio.Schema:
+) -> vol.Schema:
     values = values or {}
 
-    return probatio.Schema(
+    return vol.Schema(
         {
-            probatio.Required(
+            vol.Required(
                 CONF_USERNAME,
                 description={
                     "suggested_value": values.get(CONF_USERNAME)
@@ -60,8 +60,8 @@ def _credentials_schema(
                     autocomplete="username",
                 )
             ),
-            probatio.Required(
-                probatio.Secret(CONF_PASSWORD),
+            vol.Required(
+                CONF_PASSWORD,
             ): TextSelector(
                 TextSelectorConfig(
                     type=TextSelectorType.PASSWORD,
@@ -253,12 +253,12 @@ class IovoOptionsFlow(
                 self._sync_result = self._format_sync_result(result)
                 return await self.async_step_sync_done()
 
-        schema = probatio.Schema(
+        schema = vol.Schema(
             {
-                probatio.Required(
+                vol.Required(
                     CONF_SYNC_DIRECTION,
                     default=DEFAULT_SYNC_DIRECTION,
-                ): probatio.In(
+                ): vol.In(
                     {
                         DIRECTION_IOVO_TO_HA: "iovo|doc → Home Assistant",
                         DIRECTION_HA_TO_IOVO: "Home Assistant → iovo|doc",
@@ -283,7 +283,7 @@ class IovoOptionsFlow(
 
         return self.async_show_form(
             step_id="sync_done",
-            data_schema=probatio.Schema({}),
+            data_schema=vol.Schema({}),
             description_placeholders={
                 "result": self._sync_result,
             },
@@ -301,9 +301,9 @@ class IovoOptionsFlow(
                 data=options,
             )
 
-        schema = probatio.Schema(
+        schema = vol.Schema(
             {
-                probatio.Required(
+                vol.Required(
                     CONF_AUTO_SYNC,
                     default=bool(
                         options.get(
@@ -312,20 +312,20 @@ class IovoOptionsFlow(
                         )
                     ),
                 ): bool,
-                probatio.Required(
+                vol.Required(
                     CONF_SYNC_DIRECTION,
                     default=options.get(
                         CONF_SYNC_DIRECTION,
                         DEFAULT_SYNC_DIRECTION,
                     ),
-                ): probatio.In(
+                ): vol.In(
                     {
                         DIRECTION_IOVO_TO_HA: "iovo|doc → Home Assistant",
                         DIRECTION_HA_TO_IOVO: "Home Assistant → iovo|doc",
                         DIRECTION_BIDIRECTIONAL: "Beide Richtungen",
                     }
                 ),
-                probatio.Required(
+                vol.Required(
                     CONF_SYNC_INTERVAL,
                     default=int(
                         options.get(
@@ -333,20 +333,20 @@ class IovoOptionsFlow(
                             DEFAULT_SYNC_INTERVAL,
                         )
                     ),
-                ): probatio.All(
-                    probatio.Coerce(int),
-                    probatio.Range(
+                ): vol.All(
+                    vol.Coerce(int),
+                    vol.Range(
                         min=1,
                         max=1440,
                     ),
                 ),
-                probatio.Required(
+                vol.Required(
                     CONF_CONFLICT_PRIORITY,
                     default=options.get(
                         CONF_CONFLICT_PRIORITY,
                         DEFAULT_CONFLICT_PRIORITY,
                     ),
-                ): probatio.In(
+                ): vol.In(
                     {
                         CONFLICT_IOVO: "iovo|doc",
                         CONFLICT_HA: "Home Assistant",

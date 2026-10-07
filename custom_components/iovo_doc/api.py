@@ -5,13 +5,7 @@ import json
 import logging
 from typing import Any
 
-from aiohttp import (
-    ClientError,
-    ClientResponse,
-    ClientResponseError,
-    ClientSession,
-    encode_basic_auth,
-)
+from aiohttp import BasicAuth, ClientError, ClientResponse, ClientResponseError, ClientSession
 
 from .const import API_BASE_URL, CONNECTION_ENDPOINT, DEFAULT_ROOMS_ENDPOINT
 
@@ -181,15 +175,16 @@ class IovoApiClient:
     ) -> dict[str, Any]:
         url = f"{API_BASE_URL}{endpoint}"
 
-        headers = {
-            "Authorization": encode_basic_auth(
-                self._username,
-                self._password,
-            ),
-        }
+        basic_auth = BasicAuth(
+            login=self._username,
+            password=self._password,
+            encoding="utf-8",
+        )
 
         request_kwargs: dict[str, Any] = {
-            "headers": headers,
+            "headers": {
+                "Authorization": basic_auth.encode(),
+            },
             "allow_redirects": False,
         }
 

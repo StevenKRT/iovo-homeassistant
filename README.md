@@ -4,6 +4,8 @@ HACS-Custom-Integration zur kontrollierten Synchronisierung zwischen iovo|doc un
 
 ## Installation
 
+[![In HACS öffnen](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=StevenKRT&repository=iovo-homeassistant&category=integration)
+
 1. Repository in HACS als benutzerdefiniertes Repository vom Typ `Integration` hinzufügen.
 2. `iovo|doc` über HACS installieren.
 3. Home Assistant neu starten.
