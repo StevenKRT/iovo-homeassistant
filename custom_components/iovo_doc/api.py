@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import asyncio
-import base64
 import json
 import logging
 from typing import Any
 
-from aiohttp import ClientError, ClientResponse, ClientResponseError, ClientSession
+from aiohttp import BasicAuth, ClientError, ClientResponse, ClientResponseError, ClientSession
 
 from .const import API_BASE_URL, CONNECTION_ENDPOINT, DEFAULT_ROOMS_ENDPOINT
 
@@ -176,24 +175,11 @@ class IovoApiClient:
     ) -> dict[str, Any]:
         url = f"{API_BASE_URL}{endpoint}"
 
-        credentials = (
-            self._api_key.encode("utf-8")
-            + b":"
-            + self._secret.encode("utf-8")
-        )
-        authorization = base64.b64encode(credentials).decode("ascii")
-
-        headers = {
-            "Authorization": f"Basic {authorization}",
-            "Accept": "*/*",
-            "Accept-Encoding": "identity",
-            "User-Agent": "curl/8.10.1",
-            "Connection": "close",
-        }
-
         request_kwargs: dict[str, Any] = {
-            "headers": headers,
-            "ssl": False,
+            "auth": BasicAuth(
+                login=self._api_key,
+                password=self._secret,
+            ),
         }
 
         if json_data is not None:
@@ -226,7 +212,7 @@ class IovoApiClient:
     ) -> dict[str, Any]:
         body = await response.text()
 
-        _LOGGER.warning(
+        _LOGGER.debug(
             "iovo|doc API %s %s -> HTTP %s",
             method,
             endpoint,
