@@ -32,13 +32,13 @@
             "access_denied": "iovo|doc denied access. The Home Assistant log shows whether Basic Auth was actually sent."
         },
         "create_entry": {
-            "default": "iovo|doc was connected. No synchronization was started."
+            "default": "iovo|doc was connected successfully."
         }
     },
     "options": {
         "step": {
             "init": {
-                "title": "iovo|doc",
+                "title": "Rooms",
                 "menu_options": {
                     "sync": "Synchronize rooms now",
                     "automatic": "Automatic synchronization"
@@ -50,7 +50,7 @@
             },
             "sync": {
                 "title": "Synchronize rooms",
-                "description": "Synchronization starts only after you confirm this form.",
+                "description": "Choose the direction in which rooms should be transferred.",
                 "data": {
                     "sync_direction": "Direction"
                 }
@@ -61,7 +61,7 @@
             },
             "automatic": {
                 "title": "Automatic synchronization",
-                "description": "Automatic synchronization is disabled by default. After enabling it, the first synchronization starts only after the selected interval has elapsed.",
+                "description": "Choose whether rooms should be synchronized regularly.",
                 "data": {
                     "auto_sync": "Automatic synchronization",
                     "sync_direction": "Direction",

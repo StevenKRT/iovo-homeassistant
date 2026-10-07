@@ -1,6 +1,6 @@
 # iovo|doc für Home Assistant
 
-HACS-Custom-Integration zur kontrollierten Synchronisierung zwischen iovo|doc und Home Assistant.
+HACS-Custom-Integration für die Verbindung von iovo|doc mit Home Assistant.
 
 ## Installation
 
@@ -12,56 +12,38 @@ HACS-Custom-Integration zur kontrollierten Synchronisierung zwischen iovo|doc un
 4. Unter `Einstellungen > Geräte & Dienste` die Integration `iovo|doc` hinzufügen.
 5. `API-Schlüssel` und `Geheimer Secret` eingeben.
 
-## Verhalten bei der Einrichtung
+## Einrichtung
 
-Die HACS-Installation führt keinen API-Aufruf aus.
-
-Beim Hinzufügen der Integration wird nach dem Absenden der Zugangsdaten genau der folgende Endpunkt aufgerufen:
+Beim Hinzufügen der Integration wird nach dem Absenden der Zugangsdaten ausschließlich folgender Endpunkt aufgerufen:
 
 `GET https://api.iovodoc.de/Data/HomeAssistant`
 
-Der Aufruf dient ausschließlich zur Prüfung der Verbindung und zum Abruf der von der Schnittstelle angebotenen Funktionen.
-
-Es werden dabei keine Räume gelesen, angelegt, geändert oder synchronisiert.
-
-Nach erfolgreicher Einrichtung ist die automatische Synchronisierung ausgeschaltet.
+Der sichtbare Konfigurationseintrag heißt `Räume`. Weitere Ressourcenarten können später als eigene Einträge ergänzt werden.
 
 ## Räume
 
-Eine Raumsynchronisierung verwendet den vom Verbindungsendpunkt angegebenen Raum-Endpunkt. In Version 1 ist dies:
+Mapping zwischen Home Assistant und iovo|doc:
 
-`/Data/Rooms`
+- Home-Assistant-Bereich `name` -> iovo|doc `description`
+- Home-Assistant-Bereich `id` -> iovo|doc `identifiers`
 
-Manuelle Synchronisierung und automatische Synchronisierung werden unter `Einstellungen > Geräte & Dienste > iovo|doc > Konfigurieren` gesteuert.
+`idRooms` bleibt eine interne iovo|doc-ID und wird beim Anlegen von iovo|doc selbst erzeugt.
 
-## Automatische Synchronisierung
+Bei Home Assistant -> iovo|doc sucht der Server zuerst nach `identifiers = area.id`. Wird ein Raum gefunden, wird er aktualisiert. Wird keiner gefunden, wird ein neuer Raum angelegt.
 
-Die automatische Synchronisierung ist standardmäßig ausgeschaltet.
+Bei bestehenden iovo|doc-Räumen ohne `identifiers` kann die Integration einen eindeutig gleichnamigen Home-Assistant-Bereich einmalig zuordnen und anschließend dessen `area.id` in `identifiers` hinterlegen.
 
-Nach dem Einschalten startet nicht sofort eine Synchronisierung. Der erste Lauf erfolgt erst nach Ablauf des gewählten Intervalls.
+## API
 
-## iovo|doc API
+Zum Repository gehören:
 
-Zum Repository gehört unter `iovo-api/HomeAssistant.php` der Verbindungsendpunkt für iovo|doc.
+- `iovo-api/HomeAssistant.php`
+- `iovo-api/Rooms.php`
 
-Er wird serverseitig als:
+`/Data/HomeAssistant` meldet für Räume Lesen, Ändern und Anlegen als unterstützt.
 
-`/Data/HomeAssistant`
+`POST /Data/Rooms` unterstützt Update und Insert. Die Zuordnung erfolgt über `identifiers`.
 
-bereitgestellt.
+## Automatik
 
-Die Authentifizierung erfolgt über die bestehende iovo|doc API-Authentifizierung.
-
-## Aktueller Funktionsumfang
-
-- Verbindung mit API-Schlüssel und Geheimer Secret
-- Manuelle Raumsynchronisierung
-- iovo|doc nach Home Assistant
-- Home Assistant nach iovo|doc für bereits zugeordnete Räume
-- Bidirektionale Synchronisierung
-- Automatische Synchronisierung optional
-- Automatische Synchronisierung standardmäßig aus
-- Persistente Raumzuordnungen
-- Behandlung gleichnamiger Räume
-- Deutsche und englische Oberfläche
-- Reauthentifizierung bei geänderten Zugangsdaten
+Die automatische Synchronisierung ist standardmäßig ausgeschaltet und kann in den Optionen des Eintrags `Räume` aktiviert werden.

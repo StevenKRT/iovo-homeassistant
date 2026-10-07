@@ -32,13 +32,13 @@
             "access_denied": "iovo|doc hat den Zugriff abgelehnt. Im Home-Assistant-Protokoll steht, ob Basic Auth tatsächlich gesendet wurde."
         },
         "create_entry": {
-            "default": "iovo|doc wurde verbunden. Es wurde keine Synchronisierung gestartet."
+            "default": "iovo|doc wurde erfolgreich verbunden."
         }
     },
     "options": {
         "step": {
             "init": {
-                "title": "iovo|doc",
+                "title": "Räume",
                 "menu_options": {
                     "sync": "Räume jetzt synchronisieren",
                     "automatic": "Automatische Synchronisierung"
@@ -50,7 +50,7 @@
             },
             "sync": {
                 "title": "Räume synchronisieren",
-                "description": "Die Synchronisierung startet erst, wenn Sie dieses Formular bestätigen.",
+                "description": "Wählen Sie aus, in welche Richtung die Räume übertragen werden sollen.",
                 "data": {
                     "sync_direction": "Richtung"
                 }
@@ -61,7 +61,7 @@
             },
             "automatic": {
                 "title": "Automatische Synchronisierung",
-                "description": "Die Automatik ist standardmäßig ausgeschaltet. Nach dem Einschalten erfolgt die erste Synchronisierung erst nach Ablauf des gewählten Intervalls.",
+                "description": "Legen Sie fest, ob Räume regelmäßig abgeglichen werden sollen.",
                 "data": {
                     "auto_sync": "Automatische Synchronisierung",
                     "sync_direction": "Richtung",

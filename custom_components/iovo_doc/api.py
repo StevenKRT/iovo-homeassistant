@@ -154,24 +154,53 @@ class IovoApiClient:
 
         return rooms
 
-    async def async_update_room(
+    async def async_save_room(
         self,
-        room_id: str,
+        area_id: str,
         name: str,
-    ) -> None:
-        if not self.can_update_rooms:
+        room_id: str | None = None,
+    ) -> dict[str, Any]:
+        if room_id is None and not self.can_create_rooms:
+            raise IovoUnsupportedError(
+                "iovo|doc erlaubt derzeit keine neuen Räume."
+            )
+
+        if room_id is not None and not self.can_update_rooms:
             raise IovoUnsupportedError(
                 "iovo|doc erlaubt derzeit keine Änderungen an Räumen."
             )
 
-        await self._async_request(
+        data: dict[str, Any] = {
+            "description": name.strip(),
+            "identifiers": area_id,
+        }
+
+        if room_id is not None:
+            data["roomID"] = int(room_id)
+
+        payload = await self._async_request(
             "POST",
             self.rooms_endpoint,
-            json_data={
-                "roomID": int(room_id),
-                "description": name.strip(),
-            },
+            json_data=data,
         )
+        result = payload.get("data")
+
+        if isinstance(result, dict):
+            saved_id = result.get("id", room_id)
+            created = bool(result.get("created", room_id is None))
+        else:
+            saved_id = room_id if room_id is not None else result
+            created = room_id is None
+
+        if saved_id is None:
+            raise IovoApiError(
+                "iovo|doc hat keine Raum-ID zurückgegeben."
+            )
+
+        return {
+            "id": str(saved_id),
+            "created": created,
+        }
 
     def _authorization_header(self) -> str:
         encode_basic_auth = getattr(aiohttp, "encode_basic_auth", None)

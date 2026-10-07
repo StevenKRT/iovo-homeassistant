@@ -40,6 +40,7 @@ from .const import (
     DIRECTION_HA_TO_IOVO,
     DIRECTION_IOVO_TO_HA,
     DOMAIN,
+    ENTRY_TITLE,
     UNIQUE_ID,
 )
 
@@ -89,7 +90,7 @@ class IovoConfigFlow(
     config_entries.ConfigFlow,
     domain=DOMAIN,
 ):
-    VERSION = 3
+    VERSION = 4
     MINOR_VERSION = 0
 
     async def async_step_user(
@@ -125,7 +126,7 @@ class IovoConfigFlow(
                 errors["base"] = "unknown"
             else:
                 return self.async_create_entry(
-                    title="iovo|doc",
+                    title=ENTRY_TITLE,
                     data={
                         CONF_API_KEY: api_key,
                         CONF_SECRET: secret,
@@ -364,19 +365,34 @@ class IovoOptionsFlow(
     def _format_sync_result(
         result: dict[str, Any],
     ) -> str:
-        parts = [
-            f"{int(result.get('created', 0))} angelegt",
-            f"{int(result.get('updated', 0))} aktualisiert",
-            f"{int(result.get('linked', 0))} zugeordnet",
-        ]
-
+        created = int(result.get("created", 0))
+        updated = int(result.get("updated", 0))
+        linked = int(result.get("linked", 0))
+        unchanged = int(result.get("unchanged", 0))
         skipped = int(result.get("skipped", 0))
         conflicts = int(result.get("conflicts", 0))
 
-        if skipped:
-            parts.append(f"{skipped} nicht übertragen")
+        parts: list[str] = []
+
+        if created:
+            parts.append(f"{created} Räume angelegt")
+
+        if updated:
+            parts.append(f"{updated} Räume aktualisiert")
+
+        if linked:
+            parts.append(f"{linked} Räume zugeordnet")
+
+        if unchanged:
+            parts.append(f"{unchanged} unverändert")
 
         if conflicts:
             parts.append(f"{conflicts} Konflikte aufgelöst")
+
+        if skipped:
+            parts.append(f"{skipped} nicht verarbeitet")
+
+        if not parts:
+            return "Keine Änderungen notwendig."
 
         return ", ".join(parts) + "."

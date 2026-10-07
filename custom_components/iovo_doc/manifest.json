@@ -1,9 +1,8 @@
 {
     "domain": "iovo_doc",
     "name": "iovo|doc",
-    "version": "0.2.5",
+    "version": "0.2.6",
     "config_flow": true,
-    "single_config_entry": true,
     "integration_type": "hub",
     "iot_class": "cloud_polling",
     "documentation": "https://github.com/StevenKRT/iovo-homeassistant",

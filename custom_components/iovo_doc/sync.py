@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections import Counter
+from collections import Counter, defaultdict
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -59,7 +59,7 @@ class IovoRoomSync:
         else:
             self._data = {}
 
-        self._data.setdefault("mappings", {})
+        self._data.setdefault("states", {})
         self._data.setdefault("last_sync", None)
         self._data.setdefault("last_result", None)
 
@@ -94,7 +94,6 @@ class IovoRoomSync:
             self._data["last_result"] = result
 
             await self._async_save()
-
             return result
 
     def _schedule_auto_sync(self) -> None:
@@ -140,73 +139,86 @@ class IovoRoomSync:
     async def _async_iovo_to_ha(self) -> dict[str, Any]:
         rooms = await self.client.async_get_rooms()
         registry = ar.async_get(self.hass)
-        mappings = self._data["mappings"]
         names = self._build_area_names(rooms)
 
         created = 0
         updated = 0
         linked = 0
         skipped = 0
+        unchanged = 0
         errors: list[str] = []
-
-        claimed_area_ids = {
-            mapping.get("area_id")
-            for mapping in mappings.values()
-            if isinstance(mapping, dict)
-        }
+        claimed_area_ids: set[str] = set()
 
         for room in rooms:
             room_id = room["id"]
-            area_name = names[room_id]
-            mapping = mappings.get(room_id)
-            area = None
+            target_name = names[room_id]
+            identifier = room.get("identifiers", "")
+            area = registry.async_get_area(identifier) if identifier else None
 
-            if isinstance(mapping, dict):
-                area_id = mapping.get("area_id")
-
-                if isinstance(area_id, str):
-                    area = registry.async_get_area(area_id)
+            if area is not None and area.id in claimed_area_ids:
+                area = None
 
             if area is None:
-                exact = registry.async_get_area_by_name(area_name)
+                exact = registry.async_get_area_by_name(target_name)
 
                 if exact is not None and exact.id not in claimed_area_ids:
                     area = exact
-                    linked += 1
                 else:
                     try:
-                        area = registry.async_create(area_name)
+                        area = registry.async_create(target_name)
                         created += 1
                     except ValueError as exception:
                         errors.append(str(exception))
                         skipped += 1
                         continue
 
-                claimed_area_ids.add(area.id)
+            claimed_area_ids.add(area.id)
+            changed = False
 
-            if area.name != area_name:
+            if area.name != target_name:
                 try:
                     area = registry.async_update(
                         area.id,
-                        name=area_name,
+                        name=target_name,
                     )
                     updated += 1
+                    changed = True
                 except ValueError as exception:
                     errors.append(str(exception))
                     skipped += 1
                     continue
 
-            mappings[room_id] = {
-                "area_id": area.id,
-                "last_iovo_name": room["name"],
-                "last_ha_name": area.name,
-            }
+            if identifier != area.id:
+                try:
+                    await self.client.async_save_room(
+                        area_id=area.id,
+                        name=room["name"],
+                        room_id=room_id,
+                    )
+                    room["identifiers"] = area.id
+                    linked += 1
+                    changed = True
+                except Exception as exception:
+                    errors.append(str(exception))
+                    skipped += 1
+                    continue
+
+            if not changed and area.name == target_name:
+                unchanged += 1
+
+            self._remember_state(
+                area.id,
+                room_id,
+                room["name"],
+                area.name,
+            )
 
         return {
             "success": not errors,
             "created": created,
             "updated": updated,
             "linked": linked,
+            "unchanged": unchanged,
             "skipped": skipped,
             "conflicts": 0,
             "errors": errors,
@@ -216,190 +228,190 @@ class IovoRoomSync:
         rooms = await self.client.async_get_rooms()
         registry = ar.async_get(self.hass)
         areas = list(registry.async_list_areas())
-        mappings = self._data["mappings"]
-        names = self._build_area_names(rooms)
 
-        self._link_exact_matches(
-            rooms,
-            areas,
-            names,
-        )
-
-        rooms_by_id = {
-            room["id"]: room
+        rooms_by_identifier = {
+            room["identifiers"]: room
             for room in rooms
+            if room.get("identifiers")
         }
-        areas_by_id = {
-            area.id: area
-            for area in areas
-        }
+        unnamed_by_name = self._rooms_without_identifier_by_name(rooms)
+        claimed_room_ids: set[str] = set()
 
+        created = 0
         updated = 0
+        linked = 0
+        unchanged = 0
         skipped = 0
         errors: list[str] = []
-        mapped_area_ids: set[str] = set()
-
-        for room_id, mapping in list(mappings.items()):
-            if not isinstance(mapping, dict):
-                continue
-
-            area_id = mapping.get("area_id")
-
-            if not isinstance(area_id, str):
-                continue
-
-            mapped_area_ids.add(area_id)
-            room = rooms_by_id.get(room_id)
-            area = areas_by_id.get(area_id)
-
-            if room is None or area is None:
-                continue
-
-            if area.name != names.get(room_id, room["name"]):
-                try:
-                    await self.client.async_update_room(
-                        room_id,
-                        area.name,
-                    )
-                    updated += 1
-                except Exception as exception:
-                    errors.append(str(exception))
-                    continue
-
-            mapping["last_iovo_name"] = area.name
-            mapping["last_ha_name"] = area.name
 
         for area in areas:
-            if area.id not in mapped_area_ids:
-                skipped += 1
+            room = rooms_by_identifier.get(area.id)
+
+            if room is None:
+                candidates = [
+                    candidate
+                    for candidate in unnamed_by_name.get(area.name, [])
+                    if candidate["id"] not in claimed_room_ids
+                ]
+
+                if len(candidates) == 1:
+                    room = candidates[0]
+
+            if room is None:
+                if not self.client.can_create_rooms:
+                    skipped += 1
+                    errors.append(
+                        f"Raum '{area.name}' kann in iovo|doc nicht angelegt werden."
+                    )
+                    continue
+
+                try:
+                    saved = await self.client.async_save_room(
+                        area_id=area.id,
+                        name=area.name,
+                    )
+                    created += 1
+                    room_id = saved["id"]
+                    self._remember_state(
+                        area.id,
+                        room_id,
+                        area.name,
+                        area.name,
+                    )
+                except Exception as exception:
+                    errors.append(str(exception))
+                    skipped += 1
+
+                continue
+
+            claimed_room_ids.add(room["id"])
+            needs_name_update = room["name"] != area.name
+            needs_identifier_update = room.get("identifiers", "") != area.id
+
+            if needs_name_update or needs_identifier_update:
+                try:
+                    await self.client.async_save_room(
+                        area_id=area.id,
+                        name=area.name,
+                        room_id=room["id"],
+                    )
+                    updated += 1
+
+                    if needs_identifier_update:
+                        linked += 1
+                except Exception as exception:
+                    errors.append(str(exception))
+                    skipped += 1
+                    continue
+            else:
+                unchanged += 1
+
+            self._remember_state(
+                area.id,
+                room["id"],
+                area.name,
+                area.name,
+            )
 
         return {
             "success": not errors,
-            "created": 0,
+            "created": created,
             "updated": updated,
-            "linked": 0,
+            "linked": linked,
+            "unchanged": unchanged,
             "skipped": skipped,
             "conflicts": 0,
             "errors": errors,
-            "create_supported": self.client.can_create_rooms,
         }
 
     async def _async_bidirectional(self) -> dict[str, Any]:
         rooms = await self.client.async_get_rooms()
         registry = ar.async_get(self.hass)
-        areas = list(registry.async_list_areas())
-        mappings = self._data["mappings"]
         names = self._build_area_names(rooms)
-
-        self._link_exact_matches(
-            rooms,
-            areas,
-            names,
-        )
-
-        claimed_area_ids = {
-            mapping.get("area_id")
-            for mapping in mappings.values()
-            if isinstance(mapping, dict)
-        }
+        states = self._data["states"]
 
         created = 0
-        linked = 0
         updated = 0
+        linked = 0
+        unchanged = 0
         skipped = 0
         conflicts = 0
         errors: list[str] = []
+        claimed_area_ids: set[str] = set()
 
         for room in rooms:
             room_id = room["id"]
+            identifier = room.get("identifiers", "")
+            area = registry.async_get_area(identifier) if identifier else None
 
-            if room_id in mappings:
-                continue
+            if area is None:
+                target_name = names[room_id]
+                exact = registry.async_get_area_by_name(target_name)
 
-            area_name = names[room_id]
-            exact = registry.async_get_area_by_name(area_name)
+                if exact is not None and exact.id not in claimed_area_ids:
+                    area = exact
+                else:
+                    try:
+                        area = registry.async_create(target_name)
+                        created += 1
+                    except ValueError as exception:
+                        errors.append(str(exception))
+                        skipped += 1
+                        continue
 
-            if exact is not None and exact.id not in claimed_area_ids:
-                area = exact
-                linked += 1
-            else:
                 try:
-                    area = registry.async_create(area_name)
-                    created += 1
-                except ValueError as exception:
+                    await self.client.async_save_room(
+                        area_id=area.id,
+                        name=room["name"],
+                        room_id=room_id,
+                    )
+                    room["identifiers"] = area.id
+                    linked += 1
+                except Exception as exception:
                     errors.append(str(exception))
                     skipped += 1
                     continue
 
             claimed_area_ids.add(area.id)
-            mappings[room_id] = {
-                "area_id": area.id,
-                "last_iovo_name": room["name"],
-                "last_ha_name": area.name,
-            }
-
-        areas = list(registry.async_list_areas())
-        rooms_by_id = {
-            room["id"]: room
-            for room in rooms
-        }
-        areas_by_id = {
-            area.id: area
-            for area in areas
-        }
-        mapped_area_ids: set[str] = set()
-
-        for room_id, mapping in list(mappings.items()):
-            if not isinstance(mapping, dict):
-                continue
-
-            area_id = mapping.get("area_id")
-
-            if not isinstance(area_id, str):
-                continue
-
-            mapped_area_ids.add(area_id)
-            room = rooms_by_id.get(room_id)
-            area = areas_by_id.get(area_id)
-
-            if room is None or area is None:
-                continue
-
+            state = states.get(area.id, {})
             current_iovo = room["name"]
             current_ha = area.name
-            last_iovo = mapping.get("last_iovo_name", current_iovo)
-            last_ha = mapping.get("last_ha_name", current_ha)
+            last_iovo = state.get("last_iovo_name")
+            last_ha = state.get("last_ha_name")
 
-            iovo_changed = current_iovo != last_iovo
-            ha_changed = current_ha != last_ha
+            if last_iovo is None or last_ha is None:
+                iovo_changed = current_iovo != current_ha
+                ha_changed = current_iovo != current_ha
+            else:
+                iovo_changed = current_iovo != last_iovo
+                ha_changed = current_ha != last_ha
 
             if not iovo_changed and not ha_changed:
-                continue
-
-            if iovo_changed and not ha_changed:
-                target = names.get(room_id, current_iovo)
-
-                if current_ha != target:
-                    try:
-                        area = registry.async_update(
-                            area.id,
-                            name=target,
-                        )
-                        current_ha = area.name
-                        updated += 1
-                    except ValueError as exception:
-                        errors.append(str(exception))
-                        continue
+                unchanged += 1
+            elif iovo_changed and not ha_changed:
+                try:
+                    area = registry.async_update(
+                        area.id,
+                        name=names.get(room_id, current_iovo),
+                    )
+                    current_ha = area.name
+                    updated += 1
+                except ValueError as exception:
+                    errors.append(str(exception))
+                    skipped += 1
+                    continue
             elif ha_changed and not iovo_changed:
                 try:
-                    await self.client.async_update_room(
-                        room_id,
-                        current_ha,
+                    await self.client.async_save_room(
+                        area_id=area.id,
+                        name=current_ha,
+                        room_id=room_id,
                     )
                     current_iovo = current_ha
                     updated += 1
                 except Exception as exception:
                     errors.append(str(exception))
+                    skipped += 1
                     continue
             else:
                 conflicts += 1
@@ -412,34 +424,85 @@ class IovoRoomSync:
                     == CONFLICT_HA
                 ):
                     try:
-                        await self.client.async_update_room(
-                            room_id,
-                            current_ha,
+                        await self.client.async_save_room(
+                            area_id=area.id,
+                            name=current_ha,
+                            room_id=room_id,
                         )
                         current_iovo = current_ha
                         updated += 1
                     except Exception as exception:
                         errors.append(str(exception))
+                        skipped += 1
                         continue
                 else:
-                    target = names.get(room_id, current_iovo)
-
                     try:
                         area = registry.async_update(
                             area.id,
-                            name=target,
+                            name=names.get(room_id, current_iovo),
                         )
                         current_ha = area.name
                         updated += 1
                     except ValueError as exception:
                         errors.append(str(exception))
+                        skipped += 1
                         continue
 
-            mapping["last_iovo_name"] = current_iovo
-            mapping["last_ha_name"] = current_ha
+            self._remember_state(
+                area.id,
+                room_id,
+                current_iovo,
+                current_ha,
+            )
+
+        areas = list(registry.async_list_areas())
+        room_identifiers = {
+            room.get("identifiers", "")
+            for room in rooms
+            if room.get("identifiers")
+        }
+        unnamed_by_name = self._rooms_without_identifier_by_name(rooms)
+        claimed_room_ids = {
+            room["id"]
+            for room in rooms
+            if room.get("identifiers") in claimed_area_ids
+        }
 
         for area in areas:
-            if area.id not in mapped_area_ids:
+            if area.id in room_identifiers:
+                continue
+
+            candidates = [
+                candidate
+                for candidate in unnamed_by_name.get(area.name, [])
+                if candidate["id"] not in claimed_room_ids
+            ]
+            room = candidates[0] if len(candidates) == 1 else None
+
+            try:
+                if room is not None:
+                    saved = await self.client.async_save_room(
+                        area_id=area.id,
+                        name=area.name,
+                        room_id=room["id"],
+                    )
+                    linked += 1
+                    updated += 1
+                else:
+                    saved = await self.client.async_save_room(
+                        area_id=area.id,
+                        name=area.name,
+                    )
+                    created += 1
+
+                self._remember_state(
+                    area.id,
+                    saved["id"],
+                    area.name,
+                    area.name,
+                )
+            except Exception as exception:
+                errors.append(str(exception))
                 skipped += 1
 
         return {
@@ -447,48 +510,36 @@ class IovoRoomSync:
             "created": created,
             "updated": updated,
             "linked": linked,
+            "unchanged": unchanged,
             "skipped": skipped,
             "conflicts": conflicts,
             "errors": errors,
-            "create_supported": self.client.can_create_rooms,
         }
 
-    def _link_exact_matches(
+    def _rooms_without_identifier_by_name(
         self,
         rooms: list[dict[str, Any]],
-        areas: list[Any],
-        names: dict[str, str],
-    ) -> None:
-        mappings = self._data["mappings"]
-        mapped_area_ids = {
-            mapping.get("area_id")
-            for mapping in mappings.values()
-            if isinstance(mapping, dict)
-        }
-
-        available_by_name = {
-            area.name: area
-            for area in areas
-            if area.id not in mapped_area_ids
-        }
+    ) -> dict[str, list[dict[str, Any]]]:
+        result: dict[str, list[dict[str, Any]]] = defaultdict(list)
 
         for room in rooms:
-            room_id = room["id"]
+            if not room.get("identifiers"):
+                result[room["name"]].append(room)
 
-            if room_id in mappings:
-                continue
+        return result
 
-            area = available_by_name.get(names[room_id])
-
-            if area is None:
-                continue
-
-            mappings[room_id] = {
-                "area_id": area.id,
-                "last_iovo_name": room["name"],
-                "last_ha_name": area.name,
-            }
-            mapped_area_ids.add(area.id)
+    def _remember_state(
+        self,
+        area_id: str,
+        room_id: str,
+        iovo_name: str,
+        ha_name: str,
+    ) -> None:
+        self._data["states"][area_id] = {
+            "room_id": str(room_id),
+            "last_iovo_name": iovo_name,
+            "last_ha_name": ha_name,
+        }
 
     def _build_area_names(
         self,
@@ -507,8 +558,8 @@ class IovoRoomSync:
             if name_counts[base.casefold()] > 1:
                 qualifier = (
                     room.get("shortdescription")
-                    or room.get("identifiers")
                     or room.get("label")
+                    or room.get("identifiers")
                 )
 
                 if qualifier:

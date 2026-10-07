@@ -30,4 +30,5 @@ DEFAULT_CONFLICT_PRIORITY: Final = CONFLICT_IOVO
 STORAGE_VERSION: Final = 1
 STORAGE_KEY_PREFIX: Final = "iovo_doc"
 
-UNIQUE_ID: Final = "iovo_doc"
+UNIQUE_ID: Final = "iovo_doc_rooms"
+ENTRY_TITLE: Final = "Räume"

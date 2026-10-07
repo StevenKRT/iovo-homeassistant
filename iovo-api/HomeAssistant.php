@@ -10,14 +10,14 @@ class HomeAssistant {
             'data' => [
                 'name' => 'iovo|doc',
                 'integration' => 'home_assistant',
-                'version' => 1,
+                'version' => 2,
                 'resources' => [
                     'rooms' => [
                         'active' => true,
                         'endpoint' => '/Data/Rooms',
                         'read' => true,
                         'update' => true,
-                        'create' => false
+                        'create' => true
                     ]
                 ]
             ]
