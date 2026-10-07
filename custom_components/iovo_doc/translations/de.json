@@ -28,7 +28,8 @@
             "cannot_connect": "iovo|doc ist derzeit nicht erreichbar.",
             "unsupported": "Die iovo|doc Schnittstelle unterstützt diese Home-Assistant-Integration noch nicht.",
             "api_error": "Die Anfrage an iovo|doc konnte nicht verarbeitet werden.",
-            "unknown": "Die Verbindung zu iovo|doc konnte nicht hergestellt werden."
+            "unknown": "Die Verbindung zu iovo|doc konnte nicht hergestellt werden.",
+            "forbidden": "Der API-Zugang ist für Home Assistant nicht freigegeben."
         },
         "create_entry": {
             "default": "iovo|doc wurde verbunden. Es wurde keine Synchronisierung gestartet."
@@ -79,7 +80,8 @@
             "invalid_auth": "Die Zugangsdaten wurden von iovo|doc nicht akzeptiert.",
             "cannot_connect": "iovo|doc ist derzeit nicht erreichbar.",
             "api_error": "Die Anfrage an iovo|doc konnte nicht verarbeitet werden.",
-            "unknown": "Die Synchronisierung konnte nicht ausgeführt werden."
+            "unknown": "Die Synchronisierung konnte nicht ausgeführt werden.",
+            "forbidden": "Der API-Zugang ist für Home Assistant nicht freigegeben."
         }
     }
 }

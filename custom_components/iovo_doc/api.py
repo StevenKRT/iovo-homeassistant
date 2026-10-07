@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import json
 import logging
 from typing import Any
 
@@ -17,6 +18,10 @@ class IovoApiError(Exception):
 
 
 class IovoAuthError(IovoApiError):
+    pass
+
+
+class IovoPermissionError(IovoApiError):
     pass
 
 
@@ -36,8 +41,8 @@ class IovoApiClient:
         secret: str,
     ) -> None:
         self._session = session
-        self._api_key = api_key.strip()
-        self._secret = secret.strip()
+        self._api_key = api_key
+        self._secret = secret
         self._resources: dict[str, dict[str, Any]] = {}
 
     @property
@@ -156,7 +161,7 @@ class IovoApiClient:
         await self._async_request(
             "POST",
             self.rooms_endpoint,
-            json={
+            json_data={
                 "roomID": int(room_id),
                 "description": name.strip(),
             },
@@ -167,25 +172,39 @@ class IovoApiClient:
         method: str,
         endpoint: str,
         *,
-        json: dict[str, Any] | None = None,
+        json_data: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         url = f"{API_BASE_URL}{endpoint}"
-        credentials = f"{self._api_key}:{self._secret}".encode("utf-8")
+
+        credentials = (
+            self._api_key.encode("utf-8")
+            + b":"
+            + self._secret.encode("utf-8")
+        )
         authorization = base64.b64encode(credentials).decode("ascii")
 
         headers = {
             "Authorization": f"Basic {authorization}",
             "Accept": "*/*",
+            "Accept-Encoding": "identity",
+            "User-Agent": "curl/8.10.1",
+            "Connection": "close",
         }
+
+        request_kwargs: dict[str, Any] = {
+            "headers": headers,
+            "ssl": False,
+        }
+
+        if json_data is not None:
+            request_kwargs["json"] = json_data
 
         try:
             async with asyncio.timeout(20):
                 async with self._session.request(
                     method,
                     url,
-                    headers=headers,
-                    json=json,
-                    ssl=False,
+                    **request_kwargs,
                 ) as response:
                     return await self._async_read_response(
                         response,
@@ -207,7 +226,7 @@ class IovoApiClient:
     ) -> dict[str, Any]:
         body = await response.text()
 
-        _LOGGER.debug(
+        _LOGGER.warning(
             "iovo|doc API %s %s -> HTTP %s",
             method,
             endpoint,
@@ -220,8 +239,8 @@ class IovoApiClient:
             )
 
         if response.status == 403:
-            raise IovoAuthError(
-                "Der API-Zugang ist für diese Funktion nicht freigegeben."
+            raise IovoPermissionError(
+                "Der API-Zugang ist für Home Assistant nicht freigegeben."
             )
 
         try:
@@ -232,7 +251,7 @@ class IovoApiClient:
             ) from exception
 
         try:
-            payload = json_module_loads(body)
+            payload = json.loads(body)
         except ValueError as exception:
             raise IovoApiError(
                 "iovo|doc hat keine gültige JSON-Antwort geliefert."
@@ -254,9 +273,3 @@ class IovoApiClient:
             return ""
 
         return str(value).strip()
-
-
-def json_module_loads(value: str) -> Any:
-    import json
-
-    return json.loads(value)

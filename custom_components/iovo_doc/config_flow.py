@@ -19,6 +19,7 @@ from .api import (
     IovoApiError,
     IovoAuthError,
     IovoConnectionError,
+    IovoPermissionError,
     IovoUnsupportedError,
 )
 from .const import (
@@ -112,6 +113,8 @@ class IovoConfigFlow(
                 )
             except IovoAuthError:
                 errors["base"] = "invalid_auth"
+            except IovoPermissionError:
+                errors["base"] = "forbidden"
             except IovoConnectionError:
                 errors["base"] = "cannot_connect"
             except IovoUnsupportedError:
@@ -166,6 +169,8 @@ class IovoConfigFlow(
                 )
             except IovoAuthError:
                 errors["base"] = "invalid_auth"
+            except IovoPermissionError:
+                errors["base"] = "forbidden"
             except IovoConnectionError:
                 errors["base"] = "cannot_connect"
             except IovoUnsupportedError:
@@ -236,6 +241,8 @@ class IovoOptionsFlow(
                 result = await runtime.sync.async_sync(direction)
             except IovoAuthError:
                 errors["base"] = "invalid_auth"
+            except IovoPermissionError:
+                errors["base"] = "forbidden"
             except IovoConnectionError:
                 errors["base"] = "cannot_connect"
             except IovoApiError:
