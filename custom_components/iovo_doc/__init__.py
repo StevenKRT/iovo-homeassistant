@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import socket
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
@@ -52,7 +54,7 @@ async def async_setup_entry(
     entry: ConfigEntry,
 ) -> bool:
     client = IovoApiClient(
-        async_get_clientsession(hass),
+        async_get_clientsession(hass, family=socket.AF_INET),
         entry.data[CONF_USERNAME],
         entry.data[CONF_PASSWORD],
     )

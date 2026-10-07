@@ -24,12 +24,11 @@
             }
         },
         "error": {
-            "invalid_auth": "Die Zugangsdaten wurden von iovo|doc nicht akzeptiert.",
+            "invalid_auth": "iovo|doc hat die Anmeldung abgelehnt. Prüfen Sie API-Schlüssel, Geheimen Secret und die API-Freigabe.",
             "cannot_connect": "iovo|doc ist derzeit nicht erreichbar.",
             "unsupported": "Die iovo|doc Schnittstelle unterstützt diese Home-Assistant-Integration noch nicht.",
             "api_error": "Die Anfrage an iovo|doc konnte nicht verarbeitet werden.",
-            "unknown": "Die Verbindung zu iovo|doc konnte nicht hergestellt werden.",
-            "forbidden": "Der Zugriff auf iovo|doc wurde abgelehnt."
+            "unknown": "Die Verbindung zu iovo|doc konnte nicht hergestellt werden."
         },
         "create_entry": {
             "default": "iovo|doc wurde verbunden. Es wurde keine Synchronisierung gestartet."
@@ -77,11 +76,10 @@
             }
         },
         "error": {
-            "invalid_auth": "Die Zugangsdaten wurden von iovo|doc nicht akzeptiert.",
+            "invalid_auth": "iovo|doc hat die Anmeldung abgelehnt. Prüfen Sie API-Schlüssel, Geheimen Secret und die API-Freigabe.",
             "cannot_connect": "iovo|doc ist derzeit nicht erreichbar.",
             "api_error": "Die Anfrage an iovo|doc konnte nicht verarbeitet werden.",
-            "unknown": "Die Synchronisierung konnte nicht ausgeführt werden.",
-            "forbidden": "Der Zugriff auf iovo|doc wurde abgelehnt."
+            "unknown": "Die Synchronisierung konnte nicht ausgeführt werden."
         }
     }
 }

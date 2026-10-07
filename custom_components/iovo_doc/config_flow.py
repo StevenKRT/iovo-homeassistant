@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import socket
+
 import voluptuous as vol
 
 from homeassistant import config_entries
@@ -78,7 +80,7 @@ async def _async_validate_credentials(
     password: str,
 ) -> None:
     client = IovoApiClient(
-        async_get_clientsession(hass),
+        async_get_clientsession(hass, family=socket.AF_INET),
         username,
         password,
     )
@@ -114,7 +116,7 @@ class IovoConfigFlow(
             except IovoAuthError:
                 errors["base"] = "invalid_auth"
             except IovoPermissionError:
-                errors["base"] = "forbidden"
+                errors["base"] = "invalid_auth"
             except IovoConnectionError:
                 errors["base"] = "cannot_connect"
             except IovoUnsupportedError:
@@ -170,7 +172,7 @@ class IovoConfigFlow(
             except IovoAuthError:
                 errors["base"] = "invalid_auth"
             except IovoPermissionError:
-                errors["base"] = "forbidden"
+                errors["base"] = "invalid_auth"
             except IovoConnectionError:
                 errors["base"] = "cannot_connect"
             except IovoUnsupportedError:
@@ -242,7 +244,7 @@ class IovoOptionsFlow(
             except IovoAuthError:
                 errors["base"] = "invalid_auth"
             except IovoPermissionError:
-                errors["base"] = "forbidden"
+                errors["base"] = "invalid_auth"
             except IovoConnectionError:
                 errors["base"] = "cannot_connect"
             except IovoApiError:

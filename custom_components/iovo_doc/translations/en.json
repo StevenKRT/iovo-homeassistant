@@ -24,12 +24,11 @@
             }
         },
         "error": {
-            "invalid_auth": "The credentials were not accepted by iovo|doc.",
+            "invalid_auth": "iovo|doc rejected the login. Check the API key, secret and API access permission.",
             "cannot_connect": "iovo|doc is currently unavailable.",
             "unsupported": "The iovo|doc interface does not support this Home Assistant integration yet.",
             "api_error": "The iovo|doc request could not be processed.",
-            "unknown": "The connection to iovo|doc could not be established.",
-            "forbidden": "Access to iovo|doc was denied."
+            "unknown": "The connection to iovo|doc could not be established."
         },
         "create_entry": {
             "default": "iovo|doc was connected. No synchronization was started."
@@ -77,11 +76,10 @@
             }
         },
         "error": {
-            "invalid_auth": "The credentials were not accepted by iovo|doc.",
+            "invalid_auth": "iovo|doc rejected the login. Check the API key, secret and API access permission.",
             "cannot_connect": "iovo|doc is currently unavailable.",
             "api_error": "The iovo|doc request could not be processed.",
-            "unknown": "Synchronization could not be completed.",
-            "forbidden": "Access to iovo|doc was denied."
+            "unknown": "Synchronization could not be completed."
         }
     }
 }

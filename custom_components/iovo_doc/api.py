@@ -5,7 +5,13 @@ import json
 import logging
 from typing import Any
 
-from aiohttp import BasicAuth, ClientError, ClientResponse, ClientResponseError, ClientSession
+from aiohttp import (
+    BasicAuth,
+    ClientError,
+    ClientResponse,
+    ClientResponseError,
+    ClientSession,
+)
 
 from .const import API_BASE_URL, CONNECTION_ENDPOINT, DEFAULT_ROOMS_ENDPOINT
 
@@ -94,7 +100,6 @@ class IovoApiClient:
             resources = {}
 
         self._resources = resources
-
         return data
 
     async def async_get_rooms(self) -> list[dict[str, Any]]:
@@ -175,15 +180,14 @@ class IovoApiClient:
     ) -> dict[str, Any]:
         url = f"{API_BASE_URL}{endpoint}"
 
-        basic_auth = BasicAuth(
-            login=self._username,
-            password=self._password,
-            encoding="utf-8",
-        )
-
         request_kwargs: dict[str, Any] = {
+            "auth": BasicAuth(
+                login=self._username,
+                password=self._password,
+                encoding="utf-8",
+            ),
             "headers": {
-                "Authorization": basic_auth.encode(),
+                "Accept": "application/json",
             },
             "allow_redirects": False,
         }
@@ -226,16 +230,36 @@ class IovoApiClient:
         )
 
         if response.status == 401:
+            _LOGGER.warning(
+                "iovo|doc API hat %s %s mit HTTP 401 abgelehnt.",
+                method,
+                endpoint,
+            )
             raise IovoAuthError(
                 "Die Zugangsdaten wurden von iovo|doc nicht akzeptiert."
             )
 
         if response.status == 403:
+            _LOGGER.warning(
+                "iovo|doc API hat %s %s trotz übermittelter Basic Auth "
+                "mit HTTP 403 abgelehnt. Antwort: %s",
+                method,
+                endpoint,
+                body[:500],
+            )
             raise IovoPermissionError(
-                "Der Zugriff auf iovo|doc wurde abgelehnt."
+                "iovo|doc hat den API-Zugriff mit HTTP 403 abgelehnt."
             )
 
         if 300 <= response.status < 400:
+            location = response.headers.get("Location", "")
+            _LOGGER.warning(
+                "iovo|doc API hat %s %s mit HTTP %s weitergeleitet nach %s.",
+                method,
+                endpoint,
+                response.status,
+                location,
+            )
             raise IovoApiError(
                 "Die iovo|doc API hat die Anfrage unerwartet weitergeleitet."
             )
