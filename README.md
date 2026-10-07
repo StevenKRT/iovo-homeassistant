@@ -1,64 +1,113 @@
 # iovo|doc für Home Assistant
 
-HACS-Custom-Integration zur kontrollierten Synchronisierung zwischen iovo|doc und Home Assistant.
+Home-Assistant-Integration für die kontrollierte Synchronisierung zwischen iovo|doc und Home Assistant.
 
-## Installation
+## Installation über HACS
 
-1. Repository in HACS als benutzerdefiniertes Repository vom Typ `Integration` hinzufügen.
-2. `iovo|doc` über HACS installieren.
+[![Open your Home Assistant instance and open this repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=StevenKRT&repository=iovo-homeassistant&category=integration)
+
+Nach dem Öffnen:
+
+1. Repository zu HACS hinzufügen.
+2. `iovo|doc` herunterladen.
 3. Home Assistant neu starten.
 4. Unter `Einstellungen > Geräte & Dienste` die Integration `iovo|doc` hinzufügen.
-5. `API-Schlüssel` und `Geheimer Secret` eingeben.
+5. `API-Schlüssel` und `Geheimer Secret` aus iovo|doc eingeben.
 
-## Verhalten bei der Einrichtung
+## Verhalten bei der Installation
 
-Die HACS-Installation führt keinen API-Aufruf aus.
+Die Installation über HACS führt keinen API-Aufruf aus.
 
-Beim Hinzufügen der Integration wird nach dem Absenden der Zugangsdaten genau der folgende Endpunkt aufgerufen:
+Es werden keine Räume gelesen, angelegt, geändert oder synchronisiert.
+
+## Verhalten beim ersten Einrichten
+
+Beim Hinzufügen der Integration werden ausschließlich folgende Zugangsdaten abgefragt:
+
+- API-Schlüssel
+- Geheimer Secret
+
+Die Authentifizierung erfolgt technisch über HTTP Basic Auth:
+
+- API-Schlüssel = Benutzername
+- Geheimer Secret = Passwort
+
+Nach dem Bestätigen der Zugangsdaten wird genau dieser Endpunkt aufgerufen:
 
 `GET https://api.iovodoc.de/Data/HomeAssistant`
 
-Der Aufruf dient ausschließlich zur Prüfung der Verbindung und zum Abruf der von der Schnittstelle angebotenen Funktionen.
+Dieser Aufruf:
 
-Es werden dabei keine Räume gelesen, angelegt, geändert oder synchronisiert.
+- prüft die Zugangsdaten
+- bestätigt die Home-Assistant-Unterstützung
+- liefert die verfügbaren Funktionen und Endpunkte
+- liest keine Räume
+- verändert keine Daten
+- startet keine Synchronisierung
 
-Nach erfolgreicher Einrichtung ist die automatische Synchronisierung ausgeschaltet.
+Nach erfolgreicher Einrichtung bleibt die automatische Synchronisierung ausgeschaltet.
 
 ## Räume
 
-Eine Raumsynchronisierung verwendet den vom Verbindungsendpunkt angegebenen Raum-Endpunkt. In Version 1 ist dies:
+Die Raumsynchronisierung verwendet den vom Verbindungsendpunkt bereitgestellten Raum-Endpunkt.
+
+Aktuell:
 
 `/Data/Rooms`
 
-Manuelle Synchronisierung und automatische Synchronisierung werden unter `Einstellungen > Geräte & Dienste > iovo|doc > Konfigurieren` gesteuert.
+Eine Synchronisierung erfolgt ausschließlich:
+
+- manuell durch den Anwender
+- oder nach ausdrücklichem Aktivieren der automatischen Synchronisierung
+
+## Manuelle Synchronisierung
+
+Unter:
+
+`Einstellungen > Geräte & Dienste > iovo|doc > Konfigurieren`
+
+stehen folgende Richtungen zur Verfügung:
+
+- iovo|doc → Home Assistant
+- Home Assistant → iovo|doc
+- Beide Richtungen
+
+Die Synchronisierung beginnt erst nach ausdrücklicher Bestätigung.
 
 ## Automatische Synchronisierung
 
 Die automatische Synchronisierung ist standardmäßig ausgeschaltet.
 
-Nach dem Einschalten startet nicht sofort eine Synchronisierung. Der erste Lauf erfolgt erst nach Ablauf des gewählten Intervalls.
+Konfigurierbar sind:
+
+- Aktivierung
+- Richtung
+- Intervall
+- Vorrang bei gleichzeitigen Änderungen
+
+Nach dem Aktivieren wird nicht sofort synchronisiert. Der erste automatische Lauf erfolgt nach Ablauf des gewählten Intervalls.
 
 ## iovo|doc API
 
-Zum Repository gehört unter `iovo-api/HomeAssistant.php` der Verbindungsendpunkt für iovo|doc.
-
-Er wird serverseitig als:
+Der Verbindungsendpunkt befindet sich unter:
 
 `/Data/HomeAssistant`
 
-bereitgestellt.
+Die Authentifizierung erfolgt über die bestehende iovo|doc API-Authentifizierung mit HTTP Basic Auth.
 
-Die Authentifizierung erfolgt über die bestehende iovo|doc API-Authentifizierung.
+Der Endpunkt liefert die für Home Assistant verfügbaren Funktionen und deren API-Endpunkte.
 
 ## Aktueller Funktionsumfang
 
-- Verbindung mit API-Schlüssel und Geheimer Secret
+- Verbindung über API-Schlüssel und Geheimer Secret
+- HTTP Basic Auth
+- Discovery über `/Data/HomeAssistant`
 - Manuelle Raumsynchronisierung
-- iovo|doc nach Home Assistant
-- Home Assistant nach iovo|doc für bereits zugeordnete Räume
+- iovo|doc → Home Assistant
+- Home Assistant → iovo|doc für bereits zugeordnete Räume
 - Bidirektionale Synchronisierung
-- Automatische Synchronisierung optional
-- Automatische Synchronisierung standardmäßig aus
+- Optionale automatische Synchronisierung
+- Automatische Synchronisierung standardmäßig ausgeschaltet
 - Persistente Raumzuordnungen
 - Behandlung gleichnamiger Räume
 - Deutsche und englische Oberfläche
