@@ -179,7 +179,6 @@ class IovoApiClient:
             "auth": BasicAuth(
                 login=self._api_key,
                 password=self._secret,
-                encoding="utf-8",
             ),
         }
 

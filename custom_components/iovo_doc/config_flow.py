@@ -62,7 +62,7 @@ def _credentials_schema(
                 )
             ),
             probatio.Required(
-                CONF_SECRET,
+                probatio.Secret(CONF_SECRET),
             ): TextSelector(
                 TextSelectorConfig(
                     type=TextSelectorType.PASSWORD,
@@ -102,8 +102,8 @@ class IovoConfigFlow(
         self._abort_if_unique_id_configured()
 
         if user_input is not None:
-            api_key = str(user_input[CONF_API_KEY])
-            secret = str(user_input[CONF_SECRET])
+            api_key = user_input[CONF_API_KEY]
+            secret = user_input[CONF_SECRET]
 
             try:
                 await _async_validate_credentials(
@@ -158,8 +158,8 @@ class IovoConfigFlow(
         entry = self._get_reauth_entry()
 
         if user_input is not None:
-            api_key = str(user_input[CONF_API_KEY])
-            secret = str(user_input[CONF_SECRET])
+            api_key = user_input[CONF_API_KEY]
+            secret = user_input[CONF_SECRET]
 
             try:
                 await _async_validate_credentials(
