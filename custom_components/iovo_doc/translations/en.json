@@ -6,20 +6,20 @@
                 "title": "Set up iovo|doc",
                 "description": "Enter the credentials created in iovo|doc for Home Assistant.",
                 "data": {
-                    "api_key": "API key",
-                    "secret": "Secret"
+                    "username": "API key",
+                    "password": "Secret"
                 },
                 "data_description": {
-                    "api_key": "API key from iovo|doc.",
-                    "secret": "Secret from iovo|doc."
+                    "username": "API key from iovo|doc.",
+                    "password": "Secret from iovo|doc."
                 }
             },
             "reauth_confirm": {
                 "title": "Update iovo|doc access",
                 "description": "Enter the current credentials from iovo|doc.",
                 "data": {
-                    "api_key": "API key",
-                    "secret": "Secret"
+                    "username": "API key",
+                    "password": "Secret"
                 }
             }
         },
@@ -29,7 +29,7 @@
             "unsupported": "The iovo|doc interface does not support this Home Assistant integration yet.",
             "api_error": "The iovo|doc request could not be processed.",
             "unknown": "The connection to iovo|doc could not be established.",
-            "forbidden": "The API access is not enabled for Home Assistant."
+            "forbidden": "Access to iovo|doc was denied."
         },
         "create_entry": {
             "default": "iovo|doc was connected. No synchronization was started."
@@ -81,7 +81,7 @@
             "cannot_connect": "iovo|doc is currently unavailable.",
             "api_error": "The iovo|doc request could not be processed.",
             "unknown": "Synchronization could not be completed.",
-            "forbidden": "The API access is not enabled for Home Assistant."
+            "forbidden": "Access to iovo|doc was denied."
         }
     }
 }

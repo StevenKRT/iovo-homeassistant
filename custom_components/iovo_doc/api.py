@@ -5,7 +5,13 @@ import json
 import logging
 from typing import Any
 
-from aiohttp import BasicAuth, ClientError, ClientResponse, ClientResponseError, ClientSession
+from aiohttp import (
+    ClientError,
+    ClientResponse,
+    ClientResponseError,
+    ClientSession,
+    encode_basic_auth,
+)
 
 from .const import API_BASE_URL, CONNECTION_ENDPOINT, DEFAULT_ROOMS_ENDPOINT
 
@@ -36,12 +42,12 @@ class IovoApiClient:
     def __init__(
         self,
         session: ClientSession,
-        api_key: str,
-        secret: str,
+        username: str,
+        password: str,
     ) -> None:
         self._session = session
-        self._api_key = api_key
-        self._secret = secret
+        self._username = username
+        self._password = password
         self._resources: dict[str, dict[str, Any]] = {}
 
     @property
@@ -175,11 +181,16 @@ class IovoApiClient:
     ) -> dict[str, Any]:
         url = f"{API_BASE_URL}{endpoint}"
 
-        request_kwargs: dict[str, Any] = {
-            "auth": BasicAuth(
-                login=self._api_key,
-                password=self._secret,
+        headers = {
+            "Authorization": encode_basic_auth(
+                self._username,
+                self._password,
             ),
+        }
+
+        request_kwargs: dict[str, Any] = {
+            "headers": headers,
+            "allow_redirects": False,
         }
 
         if json_data is not None:
@@ -226,7 +237,12 @@ class IovoApiClient:
 
         if response.status == 403:
             raise IovoPermissionError(
-                "Der API-Zugang ist für Home Assistant nicht freigegeben."
+                "Der Zugriff auf iovo|doc wurde abgelehnt."
+            )
+
+        if 300 <= response.status < 400:
+            raise IovoApiError(
+                "Die iovo|doc API hat die Anfrage unerwartet weitergeleitet."
             )
 
         try:

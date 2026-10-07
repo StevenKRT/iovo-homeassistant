@@ -6,6 +6,7 @@ import probatio
 
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
@@ -23,10 +24,8 @@ from .api import (
     IovoUnsupportedError,
 )
 from .const import (
-    CONF_API_KEY,
     CONF_AUTO_SYNC,
     CONF_CONFLICT_PRIORITY,
-    CONF_SECRET,
     CONF_SYNC_DIRECTION,
     CONF_SYNC_INTERVAL,
     CONFLICT_HA,
@@ -51,9 +50,9 @@ def _credentials_schema(
     return probatio.Schema(
         {
             probatio.Required(
-                CONF_API_KEY,
+                CONF_USERNAME,
                 description={
-                    "suggested_value": values.get(CONF_API_KEY)
+                    "suggested_value": values.get(CONF_USERNAME)
                 },
             ): TextSelector(
                 TextSelectorConfig(
@@ -62,7 +61,7 @@ def _credentials_schema(
                 )
             ),
             probatio.Required(
-                probatio.Secret(CONF_SECRET),
+                probatio.Secret(CONF_PASSWORD),
             ): TextSelector(
                 TextSelectorConfig(
                     type=TextSelectorType.PASSWORD,
@@ -75,13 +74,13 @@ def _credentials_schema(
 
 async def _async_validate_credentials(
     hass,
-    api_key: str,
-    secret: str,
+    username: str,
+    password: str,
 ) -> None:
     client = IovoApiClient(
         async_get_clientsession(hass),
-        api_key,
-        secret,
+        username,
+        password,
     )
     await client.async_connect()
 
@@ -90,7 +89,8 @@ class IovoConfigFlow(
     config_entries.ConfigFlow,
     domain=DOMAIN,
 ):
-    VERSION = 1
+    VERSION = 2
+    MINOR_VERSION = 0
 
     async def async_step_user(
         self,
@@ -102,14 +102,14 @@ class IovoConfigFlow(
         self._abort_if_unique_id_configured()
 
         if user_input is not None:
-            api_key = user_input[CONF_API_KEY]
-            secret = user_input[CONF_SECRET]
+            username = user_input[CONF_USERNAME]
+            password = user_input[CONF_PASSWORD]
 
             try:
                 await _async_validate_credentials(
                     self.hass,
-                    api_key,
-                    secret,
+                    username,
+                    password,
                 )
             except IovoAuthError:
                 errors["base"] = "invalid_auth"
@@ -127,8 +127,8 @@ class IovoConfigFlow(
                 return self.async_create_entry(
                     title="iovo|doc",
                     data={
-                        CONF_API_KEY: api_key,
-                        CONF_SECRET: secret,
+                        CONF_USERNAME: username,
+                        CONF_PASSWORD: password,
                     },
                     options={
                         CONF_AUTO_SYNC: DEFAULT_AUTO_SYNC,
@@ -158,14 +158,14 @@ class IovoConfigFlow(
         entry = self._get_reauth_entry()
 
         if user_input is not None:
-            api_key = user_input[CONF_API_KEY]
-            secret = user_input[CONF_SECRET]
+            username = user_input[CONF_USERNAME]
+            password = user_input[CONF_PASSWORD]
 
             try:
                 await _async_validate_credentials(
                     self.hass,
-                    api_key,
-                    secret,
+                    username,
+                    password,
                 )
             except IovoAuthError:
                 errors["base"] = "invalid_auth"
@@ -183,8 +183,8 @@ class IovoConfigFlow(
                 return self.async_update_reload_and_abort(
                     entry,
                     data_updates={
-                        CONF_API_KEY: api_key,
-                        CONF_SECRET: secret,
+                        CONF_USERNAME: username,
+                        CONF_PASSWORD: password,
                     },
                 )
 
@@ -192,8 +192,8 @@ class IovoConfigFlow(
             step_id="reauth_confirm",
             data_schema=_credentials_schema(
                 {
-                    CONF_API_KEY: entry.data.get(
-                        CONF_API_KEY,
+                    CONF_USERNAME: entry.data.get(
+                        CONF_USERNAME,
                         "",
                     )
                 }

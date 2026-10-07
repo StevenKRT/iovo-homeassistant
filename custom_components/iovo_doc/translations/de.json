@@ -6,20 +6,20 @@
                 "title": "iovo|doc einrichten",
                 "description": "Geben Sie die Zugangsdaten ein, die Sie in iovo|doc für Home Assistant erstellt haben.",
                 "data": {
-                    "api_key": "API-Schlüssel",
-                    "secret": "Geheimer Secret"
+                    "username": "API-Schlüssel",
+                    "password": "Geheimer Secret"
                 },
                 "data_description": {
-                    "api_key": "API-Schlüssel aus iovo|doc.",
-                    "secret": "Geheimer Secret aus iovo|doc."
+                    "username": "API-Schlüssel aus iovo|doc.",
+                    "password": "Geheimer Secret aus iovo|doc."
                 }
             },
             "reauth_confirm": {
                 "title": "iovo|doc Zugang aktualisieren",
                 "description": "Geben Sie die aktuellen Zugangsdaten aus iovo|doc ein.",
                 "data": {
-                    "api_key": "API-Schlüssel",
-                    "secret": "Geheimer Secret"
+                    "username": "API-Schlüssel",
+                    "password": "Geheimer Secret"
                 }
             }
         },
@@ -29,7 +29,7 @@
             "unsupported": "Die iovo|doc Schnittstelle unterstützt diese Home-Assistant-Integration noch nicht.",
             "api_error": "Die Anfrage an iovo|doc konnte nicht verarbeitet werden.",
             "unknown": "Die Verbindung zu iovo|doc konnte nicht hergestellt werden.",
-            "forbidden": "Der API-Zugang ist für Home Assistant nicht freigegeben."
+            "forbidden": "Der Zugriff auf iovo|doc wurde abgelehnt."
         },
         "create_entry": {
             "default": "iovo|doc wurde verbunden. Es wurde keine Synchronisierung gestartet."
@@ -81,7 +81,7 @@
             "cannot_connect": "iovo|doc ist derzeit nicht erreichbar.",
             "api_error": "Die Anfrage an iovo|doc konnte nicht verarbeitet werden.",
             "unknown": "Die Synchronisierung konnte nicht ausgeführt werden.",
-            "forbidden": "Der API-Zugang ist für Home Assistant nicht freigegeben."
+            "forbidden": "Der Zugriff auf iovo|doc wurde abgelehnt."
         }
     }
 }
