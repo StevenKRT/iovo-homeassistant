@@ -270,7 +270,12 @@ class IovoRoomSync:
                         area_id=area.id,
                         name=area.name,
                     )
-                    created += 1
+
+                    if saved["created"]:
+                        created += 1
+                    else:
+                        updated += 1
+
                     room_id = saved["id"]
                     self._remember_state(
                         area.id,
@@ -493,7 +498,11 @@ class IovoRoomSync:
                         area_id=area.id,
                         name=area.name,
                     )
-                    created += 1
+
+                    if saved["created"]:
+                        created += 1
+                    else:
+                        updated += 1
 
                 self._remember_state(
                     area.id,

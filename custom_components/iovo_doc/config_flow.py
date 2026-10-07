@@ -395,4 +395,20 @@ class IovoOptionsFlow(
         if not parts:
             return "Keine Änderungen notwendig."
 
-        return ", ".join(parts) + "."
+        text = ", ".join(parts) + "."
+        errors = [
+            str(error).strip()
+            for error in result.get("errors", [])
+            if str(error).strip()
+        ]
+        unique_errors = list(dict.fromkeys(errors))
+
+        if unique_errors:
+            reason = "; ".join(unique_errors[:3])
+
+            if len(unique_errors) > 3:
+                reason += f"; {len(unique_errors) - 3} weitere Fehler"
+
+            text += f" Grund: {reason}."
+
+        return text

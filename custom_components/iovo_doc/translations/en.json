@@ -83,5 +83,12 @@
             "unknown": "Synchronization could not be completed.",
             "access_denied": "iovo|doc denied access. The Home Assistant log shows whether Basic Auth was actually sent."
         }
+    },
+    "issues": {
+        "restart_required": {
+            "title": "Home Assistant restart required",
+            "short_title": "Restart required",
+            "description": "iovo|doc was updated from version {loaded_version} to {installed_version}. Restart Home Assistant completely so the new integration version is loaded."
+        }
     }
 }

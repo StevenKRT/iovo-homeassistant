@@ -10,7 +10,6 @@ import aiohttp
 from aiohttp import (
     ClientError,
     ClientResponse,
-    ClientResponseError,
     ClientSession,
 )
 from aiohttp.hdrs import ACCEPT, AUTHORIZATION, USER_AGENT
@@ -351,23 +350,27 @@ class IovoApiClient:
                 "Die iovo|doc API hat die Anfrage unerwartet weitergeleitet."
             )
 
+        payload: dict[str, Any] | None = None
+
         try:
-            response.raise_for_status()
-        except ClientResponseError as exception:
+            decoded = json.loads(body)
+
+            if isinstance(decoded, dict):
+                payload = decoded
+        except ValueError:
+            payload = None
+
+        if response.status >= 400:
+            if payload is not None and payload.get("error"):
+                raise IovoApiError(str(payload["error"]))
+
             raise IovoApiError(
                 f"iovo|doc hat HTTP {response.status} zurückgegeben."
-            ) from exception
+            )
 
-        try:
-            payload = json.loads(body)
-        except ValueError as exception:
+        if payload is None:
             raise IovoApiError(
                 "iovo|doc hat keine gültige JSON-Antwort geliefert."
-            ) from exception
-
-        if not isinstance(payload, dict):
-            raise IovoApiError(
-                "iovo|doc hat eine unerwartete Antwort geliefert."
             )
 
         if payload.get("error"):

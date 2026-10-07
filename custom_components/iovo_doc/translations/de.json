@@ -83,5 +83,12 @@
             "unknown": "Die Synchronisierung konnte nicht ausgeführt werden.",
             "access_denied": "iovo|doc hat den Zugriff abgelehnt. Im Home-Assistant-Protokoll steht, ob Basic Auth tatsächlich gesendet wurde."
         }
+    },
+    "issues": {
+        "restart_required": {
+            "title": "Neustart von Home Assistant erforderlich",
+            "short_title": "Neustart erforderlich",
+            "description": "iovo|doc wurde von Version {loaded_version} auf {installed_version} aktualisiert. Starten Sie Home Assistant vollständig neu, damit die neue Version der Integration geladen wird."
+        }
     }
 }
