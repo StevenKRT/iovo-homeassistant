@@ -472,7 +472,7 @@ class IovoApiClient:
                 "iovo|doc hat einen unvollständigen Steuerbefehl geliefert."
             )
 
-        if command_payload is None:
+        if command_payload is None or command_payload == []:
             command_payload = {}
 
         if not isinstance(command_payload, dict):
