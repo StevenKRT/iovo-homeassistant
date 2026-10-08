@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.core import Event, HomeAssistant, State, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
@@ -30,6 +32,98 @@ from .const import (
 )
 
 
+_LOGGER = logging.getLogger(__name__)
+
+COMMAND_RULES: dict[str, dict[str, set[str]]] = {
+    "light": {
+        "turn_on": {
+            "brightness",
+            "brightness_pct",
+            "color_temp_kelvin",
+            "rgb_color",
+            "effect",
+            "transition",
+        },
+        "turn_off": {"transition"},
+        "toggle": {"transition"},
+    },
+    "switch": {
+        "turn_on": set(),
+        "turn_off": set(),
+        "toggle": set(),
+    },
+    "fan": {
+        "turn_on": set(),
+        "turn_off": set(),
+        "toggle": set(),
+        "set_percentage": {"percentage"},
+        "set_preset_mode": {"preset_mode"},
+    },
+    "climate": {
+        "turn_on": set(),
+        "turn_off": set(),
+        "set_temperature": {
+            "temperature",
+            "target_temp_high",
+            "target_temp_low",
+            "hvac_mode",
+        },
+        "set_hvac_mode": {"hvac_mode"},
+        "set_preset_mode": {"preset_mode"},
+        "set_fan_mode": {"fan_mode"},
+    },
+    "cover": {
+        "open_cover": set(),
+        "close_cover": set(),
+        "stop_cover": set(),
+        "set_cover_position": {"position", "speed"},
+        "open_cover_tilt": set(),
+        "close_cover_tilt": set(),
+        "stop_cover_tilt": set(),
+        "set_cover_tilt_position": {"tilt_position"},
+    },
+    "media_player": {
+        "turn_on": set(),
+        "turn_off": set(),
+        "toggle": set(),
+        "volume_set": {"volume_level"},
+        "volume_mute": {"is_volume_muted"},
+        "media_play": set(),
+        "media_pause": set(),
+        "media_stop": set(),
+        "media_next_track": set(),
+        "media_previous_track": set(),
+        "select_source": {"source"},
+    },
+    "vacuum": {
+        "start": set(),
+        "pause": set(),
+        "stop": set(),
+        "return_to_base": set(),
+        "set_fan_speed": {"fan_speed"},
+    },
+    "valve": {
+        "open_valve": set(),
+        "close_valve": set(),
+        "stop_valve": set(),
+        "set_valve_position": {"position"},
+    },
+    "water_heater": {
+        "turn_on": set(),
+        "turn_off": set(),
+        "set_temperature": {"temperature", "operation_mode"},
+        "set_operation_mode": {"operation_mode"},
+    },
+    "humidifier": {
+        "turn_on": set(),
+        "turn_off": set(),
+        "toggle": set(),
+        "set_humidity": {"humidity"},
+        "set_mode": {"mode"},
+    },
+}
+
+
 class IovoDeviceSync:
     def __init__(
         self,
@@ -50,6 +144,7 @@ class IovoDeviceSync:
         self._data: dict[str, Any] = {}
         self._lock = asyncio.Lock()
         self._cancel_state_listener: Callable[[], None] | None = None
+        self._command_task: asyncio.Task[None] | None = None
         self._room_map: dict[str, str] = {}
         self._room_map_loaded_at: datetime | None = None
 
@@ -59,11 +154,23 @@ class IovoDeviceSync:
         self._data.setdefault("last_sync", None)
         self._data.setdefault("last_result", None)
         self._refresh_state_listener()
+        self._command_task = self.hass.async_create_task(
+            self._async_command_loop(),
+            "iovo|doc Steuerbefehle",
+        )
 
     async def async_shutdown(self) -> None:
         if self._cancel_state_listener is not None:
             self._cancel_state_listener()
             self._cancel_state_listener = None
+
+        if self._command_task is not None:
+            self._command_task.cancel()
+            try:
+                await self._command_task
+            except asyncio.CancelledError:
+                pass
+            self._command_task = None
 
     async def async_sync(
         self,
@@ -133,6 +240,121 @@ class IovoDeviceSync:
             await self._store.async_save(self._data)
             return result
 
+    async def _async_command_loop(self) -> None:
+        while True:
+            try:
+                if not self._selected_entity_ids():
+                    await asyncio.sleep(60)
+                    continue
+
+                if not self.client.can_read_commands:
+                    await self.client.async_connect()
+
+                if not self.client.can_read_commands:
+                    await asyncio.sleep(60)
+                    continue
+
+                command = await self.client.async_get_command(20)
+                if command is None:
+                    continue
+
+                await self._async_execute_command(command)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exception:
+                _LOGGER.warning(
+                    "iovo|doc Steuerkanal konnte nicht abgefragt werden: %s",
+                    exception,
+                )
+                await asyncio.sleep(5)
+
+    async def _async_execute_command(
+        self,
+        command: dict[str, Any],
+    ) -> None:
+        command_id = int(command["id"])
+        entity_id = str(command["device_id"])
+        action = str(command["action"])
+        payload = command.get("payload", {})
+
+        try:
+            if entity_id not in self._selected_entity_ids():
+                raise ValueError(
+                    "Entität ist in iovo|doc nicht zur Geräteübertragung freigegeben."
+                )
+
+            state = self.hass.states.get(entity_id)
+            if state is None:
+                raise ValueError("Entität ist in Home Assistant nicht vorhanden.")
+
+            domain = entity_id.split(".", 1)[0]
+            domain_rules = COMMAND_RULES.get(domain)
+            if domain_rules is None:
+                raise ValueError(
+                    f"Die Geräteart {domain} kann derzeit nicht gesteuert werden."
+                )
+
+            allowed_fields = domain_rules.get(action)
+            if allowed_fields is None:
+                raise ValueError(
+                    f"Die Aktion {action} ist für {domain} nicht freigegeben."
+                )
+
+            if not self.hass.services.has_service(domain, action):
+                raise ValueError(
+                    f"Home Assistant stellt {domain}.{action} nicht bereit."
+                )
+
+            service_data: dict[str, Any] = {ATTR_ENTITY_ID: entity_id}
+            if isinstance(payload, dict):
+                for key in allowed_fields:
+                    if key in payload:
+                        service_data[key] = payload[key]
+
+            await self.hass.services.async_call(
+                domain,
+                action,
+                service_data,
+                blocking=True,
+            )
+
+            await self.client.async_finish_command(
+                command_id,
+                "done",
+            )
+
+            if not bool(
+                self.options.get(
+                    CONF_DEVICE_STATE_SYNC,
+                    DEFAULT_DEVICE_STATE_SYNC,
+                )
+            ):
+                await asyncio.sleep(0.5)
+                current_state = self.hass.states.get(entity_id)
+                if current_state is not None:
+                    await self._async_push_state_change(current_state)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exception:
+            _LOGGER.warning(
+                "iovo|doc Steuerbefehl %s für %s fehlgeschlagen: %s",
+                command_id,
+                entity_id,
+                exception,
+            )
+            try:
+                await self.client.async_finish_command(
+                    command_id,
+                    "failed",
+                    str(exception),
+                )
+            except Exception as finish_exception:
+                _LOGGER.warning(
+                    "iovo|doc konnte Fehlerstatus für Steuerbefehl %s nicht melden: %s",
+                    command_id,
+                    finish_exception,
+                )
+
     def _refresh_state_listener(self) -> None:
         if self._cancel_state_listener is not None:
             self._cancel_state_listener()
@@ -167,7 +389,7 @@ class IovoDeviceSync:
         if isinstance(old_state, State):
             old_type = self._detect_type(old_state)
             new_type = self._detect_type(new_state)
-            if old_type == new_type:
+            if old_type == new_type and old_state.state == new_state.state:
                 old_data = self._state_payload(old_state, old_type)
                 new_data = self._state_payload(new_state, new_type)
                 if old_data == new_data:

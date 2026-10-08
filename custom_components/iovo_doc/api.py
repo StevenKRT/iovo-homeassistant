@@ -17,6 +17,7 @@ from aiohttp.hdrs import ACCEPT, AUTHORIZATION, USER_AGENT
 from .const import (
     API_BASE_URL,
     CONNECTION_ENDPOINT,
+    DEFAULT_COMMANDS_ENDPOINT,
     DEFAULT_DEVICES_ENDPOINT,
     DEFAULT_FLOORS_ENDPOINT,
     DEFAULT_ROOMS_ENDPOINT,
@@ -86,6 +87,33 @@ class IovoApiClient:
             return endpoint
 
         return DEFAULT_FLOORS_ENDPOINT
+
+
+    @property
+    def commands_endpoint(self) -> str:
+        commands = self._resources.get("commands", {})
+        endpoint = commands.get("endpoint")
+
+        if isinstance(endpoint, str) and endpoint.startswith("/"):
+            return endpoint
+
+        return DEFAULT_COMMANDS_ENDPOINT
+
+    @property
+    def can_read_commands(self) -> bool:
+        commands = self._resources.get("commands", {})
+        return bool(
+            commands.get("active", False)
+            and commands.get("read", False)
+        )
+
+    @property
+    def can_update_commands(self) -> bool:
+        commands = self._resources.get("commands", {})
+        return bool(
+            commands.get("active", False)
+            and commands.get("update", False)
+        )
 
     @property
     def can_create_devices(self) -> bool:
@@ -406,6 +434,85 @@ class IovoApiClient:
             "created": bool(result.get("created", False)),
         }
 
+
+    async def async_get_command(
+        self,
+        wait_seconds: int = 20,
+    ) -> dict[str, Any] | None:
+        if not self._resources:
+            await self.async_connect()
+
+        if not self.can_read_commands:
+            return None
+
+        wait_seconds = max(0, min(int(wait_seconds), 20))
+        payload = await self._async_request(
+            "GET",
+            self.commands_endpoint,
+            params_data={"wait": wait_seconds},
+            timeout_seconds=wait_seconds + 10,
+        )
+        data = payload.get("data")
+
+        if data is None:
+            return None
+
+        if not isinstance(data, dict):
+            raise IovoApiError(
+                "iovo|doc hat einen ungültigen Steuerbefehl geliefert."
+            )
+
+        command_id = data.get("id")
+        device_id = self._clean_string(data.get("device_id"))
+        action = self._clean_string(data.get("action"))
+        command_payload = data.get("payload", {})
+
+        if command_id is None or not device_id or not action:
+            raise IovoApiError(
+                "iovo|doc hat einen unvollständigen Steuerbefehl geliefert."
+            )
+
+        if command_payload is None:
+            command_payload = {}
+
+        if not isinstance(command_payload, dict):
+            raise IovoApiError(
+                "Die Parameter des Steuerbefehls sind ungültig."
+            )
+
+        return {
+            "id": int(command_id),
+            "device_id": device_id,
+            "action": action,
+            "payload": command_payload,
+        }
+
+    async def async_finish_command(
+        self,
+        command_id: int,
+        status: str,
+        error: str = "",
+    ) -> None:
+        if not self._resources:
+            await self.async_connect()
+
+        if not self.can_update_commands:
+            return
+
+        data: dict[str, Any] = {
+            "id": int(command_id),
+            "status": status,
+        }
+
+        if error:
+            data["error"] = error[:1000]
+
+        await self._async_request(
+            "POST",
+            self.commands_endpoint,
+            json_data=data,
+        )
+
     def _authorization_header(self) -> str:
         encode_basic_auth = getattr(aiohttp, "encode_basic_auth", None)
 
@@ -448,6 +555,8 @@ class IovoApiClient:
         endpoint: str,
         *,
         json_data: dict[str, Any] | None = None,
+        params_data: dict[str, Any] | None = None,
+        timeout_seconds: int = 20,
     ) -> dict[str, Any]:
         url = f"{API_BASE_URL}{endpoint}"
         headers = self._request_headers()
@@ -460,6 +569,9 @@ class IovoApiClient:
         if json_data is not None:
             request_kwargs["json"] = json_data
 
+        if params_data is not None:
+            request_kwargs["params"] = params_data
+
         _LOGGER.debug(
             "iovo|doc API request %s %s, Basic Auth vorhanden: %s, User-Agent: %s",
             method,
@@ -469,7 +581,7 @@ class IovoApiClient:
         )
 
         try:
-            async with asyncio.timeout(20):
+            async with asyncio.timeout(timeout_seconds):
                 async with self._session.request(
                     method,
                     url,

@@ -3,13 +3,14 @@ from __future__ import annotations
 from typing import Final
 
 DOMAIN: Final = "iovo_doc"
-LOADED_VERSION: Final = "0.2.9"
+LOADED_VERSION: Final = "0.3.0"
 
 API_BASE_URL: Final = "https://api.iovodoc.de"
 CONNECTION_ENDPOINT: Final = "/Data/HomeAssistant"
 DEFAULT_ROOMS_ENDPOINT: Final = "/Data/Rooms"
 DEFAULT_FLOORS_ENDPOINT: Final = "/Data/Floors"
 DEFAULT_DEVICES_ENDPOINT: Final = "/Data/Devices"
+DEFAULT_COMMANDS_ENDPOINT: Final = "/Data/HomeAssistantCommands"
 
 CONF_API_KEY: Final = "api_key"
 CONF_SECRET: Final = "secret"

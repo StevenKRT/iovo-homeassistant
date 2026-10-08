@@ -58,3 +58,13 @@ Die Typzuordnung erfolgt nur bei eindeutigen Home-Assistant-Domains oder Geräte
 ## Automatik
 
 Die automatische regelmäßige Synchronisierung von Räumen und Stockwerken ist standardmäßig ausgeschaltet und kann je Konfigurationseintrag separat aktiviert werden. Geräte werden manuell übertragen; zusätzlich kann für ausgewählte Geräte eine laufende Zustandsübertragung aktiviert werden.
+
+
+## 0.3.0
+
+- iovo|doc kann ausgewählte Home-Assistant-Geräte über einen sicheren Command-Kanal steuern.
+- Home Assistant baut die Verbindung ausschließlich ausgehend zu iovo|doc auf.
+- Befehle werden per Long Polling über `/Data/HomeAssistantCommands` abgeholt.
+- Nur im Geräte-Sync ausgewählte Entitäten können gesteuert werden.
+- Erlaubte Aktionen und Parameter sind je Home-Assistant-Domain fest eingeschränkt.
+- Nach Befehlen wird der tatsächliche Zustand wieder an iovo|doc übertragen.
