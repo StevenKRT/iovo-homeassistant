@@ -4,13 +4,29 @@ HACS-Custom-Integration für die Verbindung von iovo|doc mit Home Assistant.
 
 ## Installation
 
-[![In HACS öffnen](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=StevenKRT&repository=iovo-homeassistant&category=integration)
+[![Im Marketplace / HACS öffnen](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=StevenKRT&repository=iovo-homeassistant&category=integration)
 
-1. Repository in HACS als benutzerdefiniertes Repository vom Typ `Integration` hinzufügen.
+### Home Assistant ab 2026.11 (Marketplace)
+
+1. Auf die Schaltfläche oben klicken oder unter `Einstellungen > Marketplace` die Funktion `Add from link` auswählen.
+2. Falls erforderlich, das Repository `https://github.com/StevenKRT/iovo-homeassistant` hinzufügen. Hierfür ist eine GitHub-Verbindung erforderlich.
+3. `iovo|doc` installieren und die Einrichtung starten.
+4. `API-Schlüssel` und `Geheimer Secret` eingeben.
+
+Ein Neustart ist bei der Erstinstallation nicht erforderlich.
+
+### Home Assistant bis 2026.10 (HACS)
+
+1. Auf die Schaltfläche oben klicken oder das Repository in HACS als benutzerdefiniertes Repository vom Typ `Integration` hinzufügen.
 2. `iovo|doc` über HACS installieren.
 3. Home Assistant neu starten.
 4. Unter `Einstellungen > Geräte & Dienste` die Integration `iovo|doc` hinzufügen.
 5. `API-Schlüssel` und `Geheimer Secret` eingeben.
+
+### Bestehende Installationen
+
+Beim Update auf Home Assistant 2026.11 werden bestehende HACS-Installationen einschließlich benutzerdefinierter Repositories automatisch in den Marketplace übernommen. Eine erneute Installation ist nicht erforderlich.
+
 
 ## Einrichtung
 
